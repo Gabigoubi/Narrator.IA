@@ -8,8 +8,8 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
 public class ModCommands {
-   public static String currentAiModel = "qwen2.5:3b";
-    public static String currentVoiceModel = "pm_alex";
+    public static String currentAiModel = "qwen2.5:3b";
+    public static String currentVoiceModel = "pm_alex"; // Padrão Homem
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -21,19 +21,19 @@ public class ModCommands {
 
                     switch (tipo) {
                         case "mulher.agressiva":
-                            currentVoiceModel = "pf_bruna"; 
+                            currentVoiceModel = "pf_sara"; // VOZ REAL FEMININA
                             source.sendFeedback(() -> Text.literal("§c[Narrador IA] Persona alterada para Mulher Agressiva!"), false);
                             break;
                         case "mulher.amigavel":
-                            currentVoiceModel = "pf_bruna"; 
+                            currentVoiceModel = "pf_diana"; // VOZ REAL FEMININA
                             source.sendFeedback(() -> Text.literal("§a[Narrador IA] Persona alterada para Mulher Amigável!"), false);
                             break;
                         case "homem.agressivo":
-                            currentVoiceModel = "pm_alex"; 
+                            currentVoiceModel = "pm_santa"; // VOZ REAL MASCULINA
                             source.sendFeedback(() -> Text.literal("§c[Narrador IA] Persona alterada para Homem Agressivo!"), false);
                             break;
                         case "homem.amigavel":
-                            currentVoiceModel = "pm_alex"; 
+                            currentVoiceModel = "pm_alex"; // VOZ REAL MASCULINA
                             source.sendFeedback(() -> Text.literal("§a[Narrador IA] Persona alterada para Homem Amigável!"), false);
                             break;
                         default:
