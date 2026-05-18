@@ -34,7 +34,8 @@ public class GameEventListener {
                     message.getContent().getString()
                 );
                 
-                HttpAssistant.sendTelemetry(eventType, contextDetails);
+                HttpAssistant.sendTelemetry(eventType, contextDetails)
+    .thenAccept(audioBytes -> AudioPlayer.playWavBytes(audioBytes));
             }
         });
     }
