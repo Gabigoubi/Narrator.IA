@@ -1,7 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import requests
+
 from app.prompt import SYSTEM_PROMPT
+from app.tts import generate_speech_stream
 
 app = FastAPI()
 
@@ -25,9 +28,17 @@ def generate_narration(telemetry: PlayerTelemetry):
         "stream": False
     }
     
-    response = requests.post(OLLAMA_URL, json=payload)
-    response_data = response.json()
+    try:
+        response = requests.post(OLLAMA_URL, json=payload, timeout=10)
+        response.raise_for_status()
+        response_data = response.json()
+        ai_text = response_data.get("response", "")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Ollama local server error")
+        
+    if not ai_text:
+        raise HTTPException(status_code=500, detail="AI returned empty text")
+        
+    audio_buffer = generate_speech_stream(ai_text)
     
-    ai_text = response_data.get("response", "")
-    
-    return {"text": ai_text}
+    return StreamingResponse(audio_buffer, media_type="audio/wav")
