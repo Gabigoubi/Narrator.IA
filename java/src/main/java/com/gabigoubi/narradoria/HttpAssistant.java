@@ -10,12 +10,12 @@ public class HttpAssistant {
     private static final String API_URL = "http://localhost:8000/narrate";
     private static final HttpClient client = HttpClient.newHttpClient();
 
-    public static CompletableFuture<byte[]> sendTelemetry(String eventType, String contextDetails) {
+  public static CompletableFuture<byte[]> sendTelemetry(String eventType, String contextDetails, String aiModel, String voiceModel) {
+  
         String jsonPayload = String.format(
-            "{\"event_type\":\"%s\",\"context_details\":\"%s\"}", 
-            eventType, contextDetails
+            "{\"event_type\":\"%s\",\"context_details\":\"%s\",\"ai_model\":\"%s\",\"voice_model\":\"%s\"}", 
+            eventType, contextDetails, aiModel, voiceModel
         );
-
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
                 .header("Content-Type", "application/json")
