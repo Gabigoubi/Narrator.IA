@@ -1,81 +1,53 @@
-# Mod Narrador IA para Minecraft
+---
 
-## Objetivo do Projeto
-Este mod captura ações e eventos de telemetria do jogador em tempo real dentro do Minecraft e envia esses dados para uma inteligência artificial executada localmente. A IA processa os acontecimentos e gera uma resposta em formato de texto com uma personalidade sarcástica, julgadora e agressiva (sem infringir diretrizes de respeito fundamental). A resposta é convertida em fala (Text-to-Speech) através do modelo Kokoro-82M e reproduzida no jogo. Todo o fluxo ocorre em segundo plano e de forma assíncrona, garantindo humor ácido sem impactar a performance da gameplay.
+# 🎙️ Mod Narrador IA para Minecraft (Fabric 1.21.1)
 
-## Estrutura do Repositório
-O projeto está organizado na seguinte estrutura de diretórios:
-- `/server-ia`: Código-fonte do servidor backend em Python, responsável pela orquestração do modelo de linguagem (LLM) e pela síntese de voz (TTS).
-- `/java`: Código-fonte do mod desenvolvido em Java para o Minecraft (Fabric), encarregado de coletar os eventos do jogo e reproduzir as faixas de áudio recebidas.
+## 🎯 Objetivo do Projeto
+
+Este mod captura ações e eventos de telemetria do jogador em tempo real dentro do Minecraft e envia esses dados para uma inteligência artificial executada **localmente** na sua máquina.
+
+A IA processa os acontecimentos da gameplay (vida, fome, blocos, mortes, conquistas) e gera uma resposta em formato de texto com uma personalidade sarcástica, julgadora e com sotaque raiz de São Paulo. A resposta é convertida em fala (Text-to-Speech) através do modelo Kokoro-82M e reproduzida no jogo.
+
+Todo o fluxo ocorre em segundo plano e de forma assíncrona, garantindo o esculacho em tempo real sem impactar a performance do jogo.
 
 ---
 
-## Cronograma de Desenvolvimento
+## 💻 Requisitos do Sistema
 
-### Fase 1: API-First, TTS e Laboratório de Persona
-**Objetivo da Fase:** Estabelecer um servidor local funcional em Python que receba dados de contexto de telemetria, valide a estrutura, execute a geração de texto baseada em uma persona específica e realize a síntese e o streaming do áudio de forma ultra-rápida.
+Como o "cérebro" da IA roda diretamente no seu computador (sem APIs pagas ou nuvem), o mod exige um pouco de hardware para processar a voz e o texto simultaneamente com o Minecraft.
 
-- [✓] **1. Setup do Repositório**
-  - [✓] Criar o repositório oficial no GitHub (`Gabigoubi/narrador-ia`).
-  - [✓] Estruturar as pastas principais do projeto (`/server-ia` e `/java`).
+### **Mínimos** *(Respostas mais curtas)*
 
-- [✓] **2. Instalação do Cérebro (Ollama - Executar no PC)**
-  - [✓] Baixar e instalar o ecossistema Ollama no ambiente de desenvolvimento.
-  - [✓] Baixar um modelo de linguagem leve e quantizado (`ollama run qwen2.5:3b`).
-  - [✓] Validar o comportamento do modelo via prompt de comando para analisar o impacto no consumo de memória RAM do sistema.
+* **SO:** Windows 10 ou 11
+* **Processador:** Qualquer CPU moderna (Intel Core i3/Ryzen 3 ou superior)
+* **Memória:** 8 GB de RAM
+* **Placa de Vídeo:** Vídeo Integrado ou Placa de Vídeo Básica
+* **Modelo IA Utilizado:** Qwen 2.5 (3B)
 
-- [✓] **3. Setup do Ambiente Python (Executar no PC)**
-  - [✓] Criar o ambiente virtual isolado para o ecossistema do servidor (`python -m venv venv`).
-  - [✓] Ativar o ambiente virtual e realizar a instalação das dependências base via `requirements.txt`.
-  - [✓] Criar o arquivo de mapeamento de dependências (`requirements.txt`).
+### **Recomendados** *(Experiência completa, ágil e zoeira extrema)*
 
-- [✓] **4. Instalação das Cordas Vocais (Kokoro-82M - Executar no PC)**
-  - [✓] Clonar ou baixar os arquivos de arquitetura do Kokoro-82M juntamente com o arquivo de modelo de voz masculina em português.
-  - [✓] Desenvolver um script Python simples para validar de forma isolada a conversão correta de um texto estático para uma sequência de bytes de áudio.
-
-- [✓] **5. Criação da API de Alta Performance (FastAPI)**
-  - [✓] Desenvolver o arquivo principal da aplicação (`main.py`).
-  - [✓] Criar uma rota de checagem simples (`GET /health`) para validação rápida de inicialização do servidor no fim de semana.
-  - [✓] Criar o schema de validação de dados usando `Pydantic` para garantir que o JSON enviado pelo Minecraft esteja correto.
-  - [✓] Implementar o endpoint principal do tipo POST sob o caminho `/narrate`.
-  - [✓] Integrar e encadear o fluxo de dados em memória: Recebimento do JSON -> Formatação do Prompt -> Chamada à API local do Ollama -> Captura do texto -> Encaminhamento ao Kokoro-82M -> Retorno do áudio via `StreamingResponse` (sem salvar arquivo em disco).
-
-- [✓] **6. Laboratório de Persona e Otimização de Latência**
-  - [✓] Definir o `System Prompt` detalhado contendo as regras de conduta da IA de 5ª série de SP (comportamento agressivo, julgador e sarcástico, com gírias nativas e limite de 50 palavras).
-  - [✓] Simular disparos de testes com payloads reais de eventos do Minecraft (Morte, Chat, Diamante com picareta de pedra).
-  - [✓] Ajustar a engenharia de prompt até garantir alta dinamicidade nas respostas.
+* **SO:** Windows 10 ou 11
+* **Processador:** Intel Core i5/Ryzen 5 ou superior (ex: Ryzen 7 5700)
+* **Memória:** 16 GB de RAM
+* **Placa de Vídeo:** Placa de Vídeo Dedicada com 8GB+ de VRAM (ex: RX 7600, RTX 3060 ou superior)
+* **Modelo IA Utilizado:** Mistral (7B)
 
 ---
 
-### Fase 2: O Mod em Java (Conexão e Áudio)
-**Objetivo da Fase:** Desenvolver a estrutura do Mod para Minecraft utilizando Java (Fabric), focando na captura limpa de eventos e na execução assíncrona do áudio recebido para evitar congelamentos na gameplay.
+## ⚙️ Como Instalar e Jogar
 
-- [✓] **1. Setup do Projeto Minecraft**
-  - [✓] Configurar o arquivo de manifesto do Mod (`fabric.mod.json`) cravado para Minecraft 1.21.1 e Java 21.
-  - [✓] Configurar a automação do Gradle (`build.gradle` e `settings.gradle`) para gerenciar as dependências do Fabric.
-  - [✓] Criar a classe principal de inicialização (`NarradorIAMod.java`) com a assinatura única do pacote `com.gabigoubi.narradoria`.
-  - [✓] Validar a compilação do mod no jogo rodando o ambiente pela primeira vez no PC.
+O projeto foi pensado para ser "Plug and Play". O mod em si é gerenciado pelo CurseForge, você só precisa levantar o servidor da IA na sua máquina antes de jogar.
 
-- [✓] **2. Captura de Eventos de Telemetria**
-  - [✓] Implementar os listeners de eventos base do jogador (`GameEventListener.java`) focando em morte (`AFTER_RESPAWN`) e chat do jogo (`CHAT_MESSAGE`).
-  - [✓] Estruturar os dados coletados no formato exato do JSON esperado pela API Python e converter objetos de texto usando `.getString()`.
-
-- [✓] **3. Conexão Assíncrona via HTTP**
-  - [✓] Implementar o cliente HTTP nativo do Java (`HttpAssistant.java`) utilizando requisições assíncronas (`sendAsync`).
-  - [✓] Garantir que o envio dos dados para a API Python ocorra via `CompletableFuture` (Thread separada) para evitar congelamentos (*stuttering*) na tela do jogador.
-
-- [✓] **4. Reprodutor de Áudio In-Game**
-  - [✓] Criar o sistema capaz de receber o fluxo de bytes de áudio binários brutos (`AudioPlayer.java`).
-  - [✓] Desenvolver a abertura de linha de áudio nativa do Java (`SourceDataLine`) a 24000Hz em background para reproduzir o áudio sem travar a gameplay.
+1. **Baixe o Mod:** Instale o mod diretamente pela nossa página oficial no **CurseForge**.
+2. **Baixe o Servidor IA:** Baixe o código deste repositório (botão verde `Code` > `Download ZIP`) e extraia a pasta `server-ia` no seu PC.
+3. **Primeira Instalação:** Dê dois cliques no arquivo `1_Instalar_Primeira_Vez.bat` e siga as instruções na tela. *(Lembre-se de marcar "Add Python to PATH" durante a instalação do Python!)*
+4. **Ligar e Jogar:** Sempre que for jogar, abra a pasta `server-ia` e execute o `.bat` correspondente ao seu PC (`2_Iniciar_PC_Fraco_8GB_RAM.bat` ou `2_Iniciar_PC_Forte_16GB_RAM.bat`). Deixe a tela preta minimizada, abra o Minecraft pelo CurseForge e divirta-se!
 
 ---
 
-### Fase 3: Polimento, Debug de Campo e Integração Total
-**Objetivo da Fase:** Unificar os dois sistemas no PC, ajustar o balanço de áudio e caçar os bugs reais de runtime durante a gameplay.
+## 📂 Estrutura do Repositório (Para Desenvolvedores)
 
-- [✓] **1. Teste de Estresse em Gameplay (Executar no PC)**
-  - [/] Jogar por 30 minutos monitorando o consumo de RAM simultâneo (Minecraft + Ollama + FastAPI).
-  - [/] Tratar possíveis erros de concorrência e exceções de rede (`try/except` no Python e `.exceptionally` no Java) caso múltiplos eventos aconteçam ao mesmo tempo no jogo.
+O projeto está organizado na seguinte estrutura de diretórios para quem deseja auditar o código ou contribuir:
 
-- [✓] **2. Ajustes Finais de Áudio (Executar no PC)**
-  - [✓] Configurar os canais de áudio para que a voz do narrador seja clara mesmo com sons de explosões ou música de fundo do jogo.
+* `/server-ia`: Código-fonte do servidor backend em Python (FastAPI). Responsável pela orquestração do modelo de linguagem (LLM via Ollama) e pela síntese de voz (TTS via Kokoro-82M).
+* `/java`: Código-fonte do mod desenvolvido em Java para o Minecraft (Fabric). Encarregado de coletar os eventos do jogo em uma "Mochila de Memória", realizar disparos assíncronos via HTTP e reproduzir as faixas de áudio recebidas limitando picos de decibéis.
