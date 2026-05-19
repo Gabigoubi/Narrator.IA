@@ -11,7 +11,7 @@ public class NarradorIAMod implements ModInitializer {
    @Override
     public void onInitialize() {
         LOGGER.info("Narrador IA - Mod inicializado com sucesso, parça!");
-        GameEventListener.registerEvents();
+        GameEventListener.register();
         ModCommands.register();
     }
 }
