@@ -6,6 +6,9 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.ActionResult;
+import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +26,16 @@ public class GameEventListener {
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             String bloco = state.getBlock().getName().getString();
             adicionarAcao("Quebrou " + bloco);
+        });
+        
+        ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) -> {
+            String texto = message.getContent().getString();
+            HttpAssistant.sendNarrateRequest("player_chat", "O jogador disse no chat: " + texto, ModCommands.currentAiModel, ModCommands.currentVoiceModel);
+        });
+
+     
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            HttpAssistant.sendNarrateRequest("player_death", "O jogador morreu, perdeu tudo e acabou de renascer.", ModCommands.currentAiModel, ModCommands.currentVoiceModel);
         });
 
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
