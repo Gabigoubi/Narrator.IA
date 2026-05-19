@@ -1,52 +1,57 @@
-=====================================================================
-GUIA DE INSTALAÇÃO DO BETA - NARRADOR IA (1.21.1 FABRIC)
-​📢 AVISO RECONFORTANTE: Eu sei que olhando assim parece muita coisa, mas esse processo de configuração longa só precisa ser feito UMA VEZ. Depois disso, para jogar é só dar dois comandos rápidos. Além disso, eu vou acompanhar cada um dos 3 testadores de perto! Se travar em qualquer passo ou surgir qualquer dúvida, me dá um toque que eu te ajudo a resolver na hora.
-​PRÉ-REQUISITO OBRIGATÓRIO: Instalar o Python
-​A Inteligência Artificial precisa do Python instalado no seu sistema para funcionar.
-​Acesse o site oficial do Python: https://www.python.org/downloads/
-​Procure pela versão Python 3.11 (ou superior) e baixe o instalador para Windows.
-​⚠️ ATENÇÃO MÁXIMA NA INSTALAÇÃO: Na primeiríssima tela do instalador, você OBRIGATORIAMENTE precisa marcar a caixinha que diz "Add Python to PATH" lá embaixo antes de clicar em "Install Now". Se não marcar isso, o mod não funciona!
-​PASSO 1: INSTALAR O MOTOR DA IA (Ollama)
-​O Ollama é o programa gratuito que vai rodar os modelos de Inteligência Artificial direto na sua máquina.
-​Acesse o site oficial: https://ollama.com e baixe a versão para Windows.
-​Instale como um programa comum. Após acabar, veja se o ícone do Ollama (uma lhamazinha) apareceu perto do relógio do Windows.
-​PASSO 2: BAIXAR O MODELO (Escolha o seu Cérebro)
-​Acesse o link do projeto no GitHub para pegar os arquivos do servidor: https://github.com/Gabigoubi/narrador-ia
-​Clique no botão verde "<> Code" e depois em "Download ZIP".
-​Extraia essa pasta na sua Área de Trabalho. Abra a pasta e entre em server-ia.
-​Clique com o botão direito do mouse em um espaço em branco dentro da pasta server-ia e selecione "Abrir no Terminal".
-​Agora, escolha o comando de acordo com o seu computador:
-​Opção A (Para PC Médio/Padrão): Se você quer velocidade sem pesar nada, rode o comando:
-ollama run qwen2.5:3b
-​Opção B (Para PC Monstro/Placa de Vídeo Forte): Se você tem um hardware brabo (16GB+ de RAM e boa GPU) e quer respostas complexas e ainda mais caóticas, rode o modelo Mistral 7B:
-ollama run mistral
-​Espere o download do modelo terminar. Digite um "oi" para testar, e depois digite /exit para liberar o terminal. Não feche a janela!
-​PASSO 3: CONFIGURAR O SERVIDOR DE VOZ (Primeira Vez)
-​Nesse mesmo terminal que ficou aberto na pasta server-ia, cole estes comandos na ordem exata:
-​Crie o ambiente isolado do Python:
-python -m venv venv
-​Ative o ambiente virtual (vai aparecer um (venv) verde no terminal):
-.\venv\Scripts\Activate.ps1
-(Se o Windows der erro de permissão vermelha, mude a política abrindo o PowerShell como Admin e digitando: Set-ExecutionPolicy Unrestricted, depois tente ativar de novo).
-​Instale as bibliotecas de som com a venv ativada:
-pip install -r requirements.txt
-​Ligue o servidor de áudio:
-uvicorn app.main:app --reload
-(Abra no navegador http://localhost:8000/health para conferir se aparece {"status": "healthy"}). Mantenha essa tela aberta!
-​PASSO 4: INSTALAR O MOD NO MINECRAFT
-​Certifique-se de que você tem o Fabric Loader 1.21.1 instalado no seu Launcher.
-​Baixe o arquivo do mod direto na nossa página oficial do CurseForge (vou te passar o link privado).
-​Coloque o arquivo .jar baixado dentro da sua pasta de mods do Minecraft (pressione Win + R, digite %appdata%\.minecraft\mods e dê Enter).
-​Abra o jogo!
+====================================================================
 
-=====================================================================
-🔄 COMO JOGAR NAS PRÓXIMAS VEZES (MUITO MAIS SIMPLES!)
-=====================================================================
-Nas próximas vezes que for jogar Minecraft com o Narrador, você não precisa digitar nenhum comando chato no terminal. Basta seguir este passo a passo rápido:
+LEIA-ME: COMO LIGAR O NARRADOR IA
 
-1. Certifique-se de que o Ollama está aberto perto do relógio do Windows.
-2. Abra a pasta 'server-ia'.
-3. Dê DOIS CLIQUES rápidos no arquivo 'run_server.bat' para ligar o servidor.
-4. Uma tela preta vai se abrir. Certifique-se de que ela carregou normalmente e que o servidor FastAPI está ativo.
-5. Deixe essa tela preta aberta rodando em segundo plano.
-6. Abra o seu Minecraft Fabric 1.21.1 e divirta-se!
+
+
+O mod em si já foi instalado automaticamente pelo CurseForge.
+
+Para o Narrador funcionar, você só precisa ligar o motor da Inteligência Artificial no seu PC.
+
+
+
+--- PASSO 1: CONFIGURAR O SEU PC (SÓ NA PRIMEIRA VEZ) ---
+
+
+
+1. De dois cliques no arquivo "1_Instalar_Primeira_Vez.bat".
+
+2. Ele vai abrir os sites do Ollama e do Python no seu navegador. Baixe e instale os dois.
+
+3. REGRA DE OURO: Na primeira tela de instalacao do Python, MARQUE A CAIXINHA "Add Python 3.11 to PATH" la embaixo! Se esquecer, o mod nao funciona.
+
+4. Apos instalar os dois programas, volte na tela preta, aperte qualquer tecla e aguarde. Quando terminar, pode fechar.
+
+
+
+--- PASSO 2: COMO JOGAR (SEMPRE QUE FOR ABRIR O MINE) ---
+
+
+
+Antes de abrir o jogo no CurseForge, voce precisa ligar o servidor da IA. Escolha o arquivo de acordo com o seu computador e de dois cliques:
+
+
+
+-> 2_Iniciar_PC_Fraco_8GB_RAM.bat
+
+(Use este se tiver 8GB de RAM e video integrado no processador ou placa de video)
+
+
+
+-> 2_Iniciar_PC_Forte_16GB_RAM.bat
+
+(Use este se tiver 16GB de RAM e Placa de Video dedicada)
+
+
+
+Deixe a tela preta que abrir minimizada rodando em segundo plano.
+
+Agora e so clicar em JOGAR no CurseForge e se preparar para ser esculachado!
+
+
+
+====================================================================
+
+Bugs ou problemas?
+
+Mande na aba de comentarios do CurseForge ou abra uma issue no nosso GitHub.
