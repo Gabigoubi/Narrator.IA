@@ -36,7 +36,7 @@ public class GameEventListener {
         });
 
         ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) -> {
-            ServerPlayerEntity player = sender.getPlayer();
+            ServerPlayerEntity player = sender;
             if (player != null) {
                 String eventType = "player_chat";
                 String contextDetails = String.format("Player %s typed: '%s'", player.getName().getString(), message.getContent().getString());

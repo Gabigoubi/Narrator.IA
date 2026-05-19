@@ -8,7 +8,9 @@ import java.util.concurrent.CompletableFuture;
 
 public class HttpAssistant {
     private static final String API_URL = "http://localhost:8000/narrate";
-    private static final HttpClient client = HttpClient.newHttpClient();
+    private static final HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofMinutes(5))
+            .build();
 
   public static CompletableFuture<byte[]> sendTelemetry(String eventType, String contextDetails, String aiModel, String voiceModel) {
   

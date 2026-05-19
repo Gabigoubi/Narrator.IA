@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "narrador_ia",
+  "version": "${version}",
+  "name": "Narrador IA",
+  "description": "Mod de narracao com IA e Kokoro",
+  "authors": [
+    "Gabigoubi"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/narrador_ia/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.gabigoubi.narradoria.NarradorIAMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
