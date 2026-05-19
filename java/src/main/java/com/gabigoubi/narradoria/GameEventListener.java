@@ -33,7 +33,14 @@ public class GameEventListener {
             HttpAssistant.sendNarrateRequest("player_chat", "O jogador disse no chat: " + texto, ModCommands.currentAiModel, ModCommands.currentVoiceModel);
         });
 
-     
+              net.fabricmc.fabric.api.message.v1.ServerMessageEvents.GAME_MESSAGE.register((server, message, overlay) -> {
+            String texto = message.getString();
+            
+            if (texto.contains("conseguiu a conquista") || texto.contains("fez o progresso") || texto.contains("advancement") || texto.contains("challenge")) {
+                HttpAssistant.sendNarrateRequest("player_advancement", "O jogador acabou de conseguir essa conquista épica no jogo: " + texto, ModCommands.currentAiModel, ModCommands.currentVoiceModel);
+            }
+        });
+
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             HttpAssistant.sendNarrateRequest("player_death", "O jogador morreu, perdeu tudo e acabou de renascer.", ModCommands.currentAiModel, ModCommands.currentVoiceModel);
         });
