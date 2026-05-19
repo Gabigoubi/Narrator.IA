@@ -38,10 +38,15 @@ uvicorn app.main:app --reload
 ​Baixe o arquivo do mod direto na nossa página oficial do CurseForge (vou te passar o link privado).
 ​Coloque o arquivo .jar baixado dentro da sua pasta de mods do Minecraft (pressione Win + R, digite %appdata%\.minecraft\mods e dê Enter).
 ​Abra o jogo!
-​=====================================================================
+
+=====================================================================
 🔄 COMO JOGAR NAS PRÓXIMAS VEZES (MUITO MAIS SIMPLES!)
-​Nas próximas vezes que for jogar Minecraft com o Narrador, você não precisa baixar nada. Só faça isso:
-​Abra a pasta server-ia, clique com o botão direito e vá em "Abrir no Terminal".
-​Ative o ambiente digitando: .\venv\Scripts\Activate.ps1
-​Ligue o servidor digitando: uvicorn app.main:app --reload
-​Abra o seu Minecraft e se divirta!
+=====================================================================
+Nas próximas vezes que for jogar Minecraft com o Narrador, você não precisa digitar nenhum comando chato no terminal. Basta seguir este passo a passo rápido:
+
+1. Certifique-se de que o Ollama está aberto perto do relógio do Windows.
+2. Abra a pasta 'server-ia'.
+3. Dê DOIS CLIQUES rápidos no arquivo 'run_server.bat' para ligar o servidor.
+4. Uma tela preta vai se abrir. Certifique-se de que ela carregou normalmente e que o servidor FastAPI está ativo.
+5. Deixe essa tela preta aberta rodando em segundo plano.
+6. Abra o seu Minecraft Fabric 1.21.1 e divirta-se!
