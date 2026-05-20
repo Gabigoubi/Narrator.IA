@@ -1,5 +1,6 @@
 import io
 import scipy.io.wavfile as wavfile
+import numpy as np
 from kokoro import KPipeline
 
 pipeline = KPipeline(lang_code='p')
@@ -21,9 +22,18 @@ def generate_speech_stream(text: str, persona_id: str) -> io.BytesIO:
         split_pattern=r'\n'
     )
 
+    audio_chunks = []
+    
     for _, _, audio in generator:
-     
-        audio_numpy = audio.numpy()
-        return io.BytesIO(audio_numpy.tobytes())
+        audio_chunks.append(audio.numpy())
 
-    return io.BytesIO()
+    if not audio_chunks:
+        return io.BytesIO()
+
+    final_audio = np.concatenate(audio_chunks)
+    
+    buffer = io.BytesIO()
+    wavfile.write(buffer, 24000, final_audio)
+    buffer.seek(0)
+    
+    return buffer
