@@ -21,41 +21,35 @@ public class GameEventListener {
     private static final List<String> acoesRecentes = new ArrayList<>();
     private static int tickCounter = 0;
     private static final int TEMPO_NARRACAO_TICKS = 600;
+    private static final String VOICE_MODEL = "homem.agressivo";
 
     public static void register() {
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
             if (player != null) {
-                player.sendMessage(Text.literal("§b========================================"), false);
-                player.sendMessage(Text.literal("§6§lNarrador.IA MOD §r- Obrigado por usar meu Mod!"), false);
-                player.sendMessage(Text.literal("§eUse os comandos abaixo para alterar as personas:"), false);
-                player.sendMessage(Text.literal("§f/persona mulher.agressiva"), false);
-                player.sendMessage(Text.literal("§f/persona mulher.amigavel"), false);
-                player.sendMessage(Text.literal("§f/persona homem.agressivo"), false);
-                player.sendMessage(Text.literal("§f/persona homem.amigavel"), false);
-                player.sendMessage(Text.literal("§b========================================"), false);
+                player.sendMessage(Text.literal("§b[Narrador.IA] §fNarração iniciada!"), false);
 
                 String contextDetails = String.format("O jogador %s acabou de entrar no mundo. Receba ele com sarcasmo.", player.getName().getString());
-                HttpAssistant.sendNarrateRequest("player_join", contextDetails, ModCommands.currentVoiceModel);
+                HttpAssistant.sendNarrateRequest("player_join", contextDetails, VOICE_MODEL);
             }
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-            HttpAssistant.sendNarrateRequest("player_death", "O jogador morreu, perdeu tudo e acabou de renascer.", ModCommands.currentVoiceModel);
+            HttpAssistant.sendNarrateRequest("player_death", "O jogador morreu, perdeu tudo e acabou de renascer.", VOICE_MODEL);
         });
 
         ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) -> {
             if (sender != null) {
                 String texto = message.getContent().getString();
-                HttpAssistant.sendNarrateRequest("player_chat", "O jogador disse no chat: " + texto, ModCommands.currentVoiceModel);
+                HttpAssistant.sendNarrateRequest("player_chat", "O jogador disse no chat: " + texto, VOICE_MODEL);
             }
         });
 
         ServerMessageEvents.GAME_MESSAGE.register((server, message, overlay) -> {
             String texto = message.getString();
             if (texto.contains("conseguiu a conquista") || texto.contains("fez o progresso") || texto.contains("advancement") || texto.contains("challenge")) {
-                HttpAssistant.sendNarrateRequest("player_advancement", "O jogador conseguiu essa conquista: " + texto, ModCommands.currentVoiceModel);
+                HttpAssistant.sendNarrateRequest("player_advancement", "O jogador conseguiu essa conquista: " + texto, VOICE_MODEL);
             }
         });
 
@@ -112,7 +106,7 @@ public class GameEventListener {
                     }
 
                     if (vida > 0) {
-                        HttpAssistant.sendNarrateRequest("gameplay_update", contexto.toString(), ModCommands.currentVoiceModel);
+                        HttpAssistant.sendNarrateRequest("gameplay_update", contexto.toString(), VOICE_MODEL);
                     }
 
                     acoesRecentes.clear();
