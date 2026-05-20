@@ -28,7 +28,9 @@ public class GameEventListener {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
             if (player != null) {
-                player.sendMessage(Text.literal("§b[Narrador.IA] §fNarração iniciada!"), false);
+                player.sendMessage(Text.literal("§c[⚠️ ATENÇÃO] Se você não instalou o Python, o Ollama e não rodou o servidor externo, a narração NÃO VAI FUNCIONAR!"), false);
+                player.sendMessage(Text.literal("§cLeia a descrição do mod no CurseForge. (Caso já tenha configurado tudo, apenas ignore)."), false);
+                player.sendMessage(Text.literal("§a[Narrador.IA] §fNarração iniciada!"), false);
 
                 String contextDetails = String.format("O jogador %s acabou de entrar no mundo. Receba ele com sarcasmo.", player.getName().getString());
                 HttpAssistant.sendNarrateRequest("player_join", contextDetails, VOICE_MODEL);
