@@ -21,7 +21,7 @@ public class GameEventListener {
     private static final List<String> acoesRecentes = new ArrayList<>();
     private static int tickCounter = 0;
     private static final int TEMPO_NARRACAO_TICKS = 600;
-    private static final String VOICE_MODEL = "homem.agressivo";
+    private static final String VOICE_MODEL = "pm_alex";
 
     public static void register() {
 
