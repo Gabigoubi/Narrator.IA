@@ -12,11 +12,12 @@ public class HttpAssistant {
             .connectTimeout(java.time.Duration.ofMinutes(5))
             .build();
 
-  public static CompletableFuture<byte[]> sendTelemetry(String eventType, String contextDetails, String aiModel, String voiceModel) {
-  
+
+    public static CompletableFuture<byte[]> sendNarrateRequest(String eventType, String contextDetails, String voiceModel) {
+
         String jsonPayload = String.format(
-            "{\"event_type\":\"%s\",\"context_details\":\"%s\",\"ai_model\":\"%s\",\"voice_model\":\"%s\"}", 
-            eventType, contextDetails, aiModel, voiceModel
+                "{\"event_type\":\"%s\",\"context_details\":\"%s\",\"voice_model\":\"%s\"}",
+                eventType, contextDetails, voiceModel
         );
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
@@ -27,6 +28,8 @@ public class HttpAssistant {
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
                 .thenApply(response -> {
                     if (response.statusCode() == 200) {
+
+                        AudioPlayer.play(response.body());
                         return response.body();
                     }
                     NarradorIAMod.LOGGER.error("API error code: " + response.statusCode());

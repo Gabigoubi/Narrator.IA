@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
-import net.fabricmc.fabric.api.entity.event.v1.EntityPickupItemCallback;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -38,26 +37,25 @@ public class GameEventListener {
                 player.sendMessage(Text.literal("§b========================================"), false);
 
                 String contextDetails = String.format("O jogador %s acabou de entrar no mundo. Receba ele com sarcasmo.", player.getName().getString());
-                HttpAssistant.sendNarrateRequest("player_join", contextDetails, ModCommands.currentAiModel, ModCommands.currentVoiceModel);
+                HttpAssistant.sendNarrateRequest("player_join", contextDetails, ModCommands.currentVoiceModel);
             }
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-            HttpAssistant.sendNarrateRequest("player_death", "O jogador morreu, perdeu tudo e acabou de renascer.", ModCommands.currentAiModel, ModCommands.currentVoiceModel);
+            HttpAssistant.sendNarrateRequest("player_death", "O jogador morreu, perdeu tudo e acabou de renascer.", ModCommands.currentVoiceModel);
         });
 
         ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) -> {
-            ServerPlayerEntity player = sender.getPlayer();
-            if (player != null) {
+            if (sender != null) {
                 String texto = message.getContent().getString();
-                HttpAssistant.sendNarrateRequest("player_chat", "O jogador disse no chat: " + texto, ModCommands.currentAiModel, ModCommands.currentVoiceModel);
+                HttpAssistant.sendNarrateRequest("player_chat", "O jogador disse no chat: " + texto, ModCommands.currentVoiceModel);
             }
         });
 
         ServerMessageEvents.GAME_MESSAGE.register((server, message, overlay) -> {
             String texto = message.getString();
             if (texto.contains("conseguiu a conquista") || texto.contains("fez o progresso") || texto.contains("advancement") || texto.contains("challenge")) {
-                HttpAssistant.sendNarrateRequest("player_advancement", "O jogador conseguiu essa conquista: " + texto, ModCommands.currentAiModel, ModCommands.currentVoiceModel);
+                HttpAssistant.sendNarrateRequest("player_advancement", "O jogador conseguiu essa conquista: " + texto, ModCommands.currentVoiceModel);
             }
         });
 
@@ -72,14 +70,6 @@ public class GameEventListener {
                     String item = player.getStackInHand(hand).getItem().getName().getString();
                     adicionarAcao("Usou/Colocou " + item);
                 }
-            }
-            return ActionResult.PASS;
-        });
-
-        EntityPickupItemCallback.EVENT.register((entity, itemEntity) -> {
-            if (entity instanceof ServerPlayerEntity) {
-                String item = itemEntity.getStack().getItem().getName().getString();
-                adicionarAcao("Pegou " + item);
             }
             return ActionResult.PASS;
         });
@@ -122,7 +112,7 @@ public class GameEventListener {
                     }
 
                     if (vida > 0) {
-                        HttpAssistant.sendNarrateRequest("gameplay_update", contexto.toString(), ModCommands.currentAiModel, ModCommands.currentVoiceModel);
+                        HttpAssistant.sendNarrateRequest("gameplay_update", contexto.toString(), ModCommands.currentVoiceModel);
                     }
 
                     acoesRecentes.clear();

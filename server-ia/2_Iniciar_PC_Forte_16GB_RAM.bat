@@ -14,6 +14,7 @@ echo.
 echo 🔥 LIGANDO O SERVIDOR DE AUDIO FASTAPI...
 echo Pode abrir o seu Minecraft e jogar! (Nao feche esta janela)
 echo ====================================================================
+set AI_MODEL=mistral
 uvicorn app.main:app --reload
 
 pause

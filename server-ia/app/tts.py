@@ -22,10 +22,8 @@ def generate_speech_stream(text: str, persona_id: str) -> io.BytesIO:
     )
 
     for _, _, audio in generator:
+     
         audio_numpy = audio.numpy()
-        audio_buffer = io.BytesIO()
-        wavfile.write(audio_buffer, 24000, audio_numpy)
-        audio_buffer.seek(0)
-        return audio_buffer
+        return io.BytesIO(audio_numpy.tobytes())
 
     return io.BytesIO()
