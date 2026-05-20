@@ -1,25 +1,37 @@
 @echo off
 title Instalacao do Narrador IA - Passo 1
+cd /d "%~dp0"
+
 echo ====================================================================
-echo 🛠️ BEM-VINDO A INSTALACAO DO NARRADOR IA!
+echo  BEM-VINDO A INSTALACAO DO NARRADOR IA!
 echo ====================================================================
 echo.
 echo O Windows vai abrir seu navegador agora com dois sites.
 echo.
 echo PASSO A: Instale o Ollama.
-echo PASSO B: Instale o Python 3.11 (MUITO IMPORTANTE: Na primeira tela de
-echo instalacao do Python, marque a caixa "Add Python 3.11 to PATH" no rodape!)
+echo PASSO B: Instale o Python 3.11 (MUITO IMPORTANTE: Marque a caixa "Add Python 3.11 to PATH"!)
 echo.
 pause
-start https://ollama.com/download/windows
-start https://www.python.org/downloads/release/python-3119/
+start "" "https://ollama.com/download/windows"
+start "" "https://www.python.org/downloads/release/python-3119/"
 echo.
 echo ====================================================================
-echo ⏳ QUANDO TERMINAR DE INSTALAR OS DOIS, APERTE QUALQUER TECLA AQUI...
+echo  ATENCAO: APOS INSTALAR O PYTHON, FECHE ESTA JANELA E ABRA NOVAMENTE
+echo  PARA O WINDOWS RECONHECER A INSTALACAO.
 echo ====================================================================
+echo Se voce ja instalou e reabriu, aperte qualquer tecla para continuar...
 pause >nul
 echo.
-echo Criando o cérebro do projeto (Ambiente Virtual)...
+
+python --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERRO CRITICO] Python nao encontrado. 
+    echo Feche este terminal, instale o Python marcando "Add to PATH" e abra este arquivo novamente.
+    pause
+    exit
+)
+
+echo Criando o cerebro do projeto (Ambiente Virtual)...
 python -m venv venv
 
 echo Ativando...
@@ -30,8 +42,8 @@ pip install -r requirements.txt
 
 echo.
 echo ====================================================================
-echo ✅ INSTALACAO FINALIZADA COM SUCESSO!
+echo  INSTALACAO FINALIZADA COM SUCESSO!
 echo ====================================================================
 echo Pode fechar esta janela.
-echo Nas proximas vezes, use "2_Iniciar_PC_Fraco_8GB_RAM.bat" ou "2_Iniciar_PC_Forte.bat_16GB_RAM".
+echo Nas proximas vezes, use Iniciar_PC_Fraco ou Iniciar_PC_Forte.
 pause
