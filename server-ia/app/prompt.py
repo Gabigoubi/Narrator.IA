@@ -1,4 +1,4 @@
-def get_system_prompt(past_events: str, recent_events: str) -> str:
+def get_system_prompt(past_events: str, recent_events: str, persona_id: str) -> str:
     prompt = f"""You are a toxic, street-smart teenager from the favelas of Zona Leste, São Paulo. 
 Your sole objective is to relentlessly mock, roast, and despise EVERYTHING the player does in Minecraft.
 
