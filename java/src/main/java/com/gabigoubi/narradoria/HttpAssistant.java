@@ -12,31 +12,50 @@ public class HttpAssistant {
             .connectTimeout(java.time.Duration.ofMinutes(5))
             .build();
 
+    public static boolean isNarrating = false;
 
     public static CompletableFuture<byte[]> sendNarrateRequest(String eventType, String contextDetails, String voiceModel) {
+
+        System.out.println("[HttpAssistant] Evento disparado: " + eventType);
+
+        if (isNarrating) {
+            System.out.println("[HttpAssistant] [BLOCKED] Ignorando evento. Edson Calotas ocupado.");
+            return CompletableFuture.completedFuture(new byte[0]);
+        }
+
+        System.out.println("[HttpAssistant] [LOCK] isNarrating = true. Bloqueando novas requisicoes.");
+        isNarrating = true;
 
         String jsonPayload = String.format(
                 "{\"event_type\":\"%s\",\"context_details\":\"%s\",\"voice_model\":\"%s\"}",
                 eventType, contextDetails, voiceModel
         );
+
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                 .build();
 
+        System.out.println("[HttpAssistant] Enviando POST para o Python...");
+
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
                 .thenApply(response -> {
-                    if (response.statusCode() == 200) {
+                    System.out.println("[HttpAssistant] Resposta do Python: Status " + response.statusCode());
 
+                    if (response.statusCode() == 200) {
+                        System.out.println("[HttpAssistant] Sucesso. Passando audio para o AudioPlayer.");
                         AudioPlayer.play(response.body());
                         return response.body();
                     }
-                    NarradorIAMod.LOGGER.error("API error code: " + response.statusCode());
+
+                    NarradorIAMod.LOGGER.error("[HttpAssistant] Erro na API. Destravando sistema.");
+                    isNarrating = false;
                     return new byte[0];
                 })
                 .exceptionally(ex -> {
-                    NarradorIAMod.LOGGER.error("Failed to connect to Python API: " + ex.getMessage());
+                    NarradorIAMod.LOGGER.error("[HttpAssistant] Exception no POST. Destravando sistema. Motivo: " + ex.getMessage());
+                    isNarrating = false;
                     return new byte[0];
                 });
     }
