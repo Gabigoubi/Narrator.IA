@@ -1,4 +1,4 @@
-```# 🎙️ Mod Narrador IA para Minecraft (Fabric 1.21.1) - Versão 1.3
+# 🎙️ Mod Narrador IA para Minecraft (Fabric 1.21.1) - Versão 1.3
 
 Bem-vindo ao projeto! Este mod traz uma inteligência artificial que assiste à sua gameplay e te esculacha em tempo real!
 
@@ -53,4 +53,4 @@ Se você é dev e quer entender como a arquitetura da v1.3 funciona por baixo do
 * **Proteção de Hardware (Hard Lock):** O backend em Python utiliza a biblioteca `psutil` antes do boot para inferir a memória RAM física. Em caso de hardware insuficiente (<12GB), o processo recebe um `sys.exit(1)` bloqueando o motor para evitar falhas de paginação (memory swapping) no SO do usuário.
 * **Backend em Python (FastAPI):** Atua como o cérebro orquestrador. Gerencia automaticamente a presença do Ollama no ambiente local e executa chamadas para o modelo parametrizado (`mistral:latest`). A síntese de voz ocorre via TTS (Kokoro) gerando os áudios dinamicamente.
 * **Mod Java (Fabric 1.21.1):** O motor de captura descarta a varredura baseada em *ticks* contínuos (que causaria gargalo de TPS) em favor de gatilhos condicionais. O Java empacota um JSON estruturado contendo: `critical_states` (Vida <= 4, Altitude Extrema), `hotbar` (Captura instantânea do inventário rápido) e `recent_actions`. 
-* **Otimização de Contexto:** A IA não sofre de alucinação ou *Lost in the Middle*, pois a Engenharia de Prompt traduz o JSON em uma ficha técnica situacional de leitura rápida, processando o estado do jogador em uma única inferência HTTP. O áudio retornado é decodificado e reproduzido no Minecraft utilizando semáforos de concorrência e downsampling para 16-bit PCM.```
+* **Otimização de Contexto:** A IA não sofre de alucinação ou *Lost in the Middle*, pois a Engenharia de Prompt traduz o JSON em uma ficha técnica situacional de leitura rápida, processando o estado do jogador em uma única inferência HTTP. O áudio retornado é decodificado e reproduzido no Minecraft utilizando semáforos de concorrência e downsampling para 16-bit PCM.
