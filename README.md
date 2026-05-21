@@ -39,6 +39,14 @@ O projeto foi pensado para ser "Plug and Play". O mod em si é baixado pelo Curs
 
 ---
 
+## 🛡️ Diretrizes Éticas, de Humor e Segurança
+
+* **Foco na Gameplay:** O objetivo do mod é puramente o entretenimento através do humor ácido. O Edson Calotas vai zombar estritamente das suas **decisões lógicas dentro do jogo** (ex: quebrar blocos com a mão tendo a ferramenta certa na hotbar, passar fome tendo comida, ignorar perigos óbvios). É uma zoeira focada nas mecânicas do Minecraft.
+* **Política de Respeito Absoluto:** A IA possui travas comportamentais severas em seu prompt de sistema e está terminantemente proibida de proferir qualquer tipo de ofensa pessoal ou preconceituosa contra a identidade do jogador, raça, credo, gênero, orientação sexual ou aparência.
+* **Vacina contra Injeção de Prompt (Anti-Prompt Injection):** O sistema foi blindado contra hacks de contexto. Qualquer tentativa do jogador de enviar comandos via chat do Minecraft para "controlar" a IA ou burlar suas regras morais será completamente ignorada, resultando apenas em deboche por parte do narrador contra a própria tentativa de invasão.
+
+---
+
 ## 💡 Créditos e Inspiração
 
 A ideia central e a base da arquitetura deste mod foram fortemente inspiradas no incrível trabalho da "equipe do Felps" e do projeto open-source: **minecraft-narrator** desenvolvido por *parmenashp*: https://github.com/parmenashp/minecraft-narrator/tree/main 
