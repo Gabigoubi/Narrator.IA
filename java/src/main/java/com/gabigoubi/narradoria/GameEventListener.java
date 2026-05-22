@@ -1,190 +1,279 @@
 package com.gabigoubi.narradoria;
 
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import com.google.gson.Gson;
+import java.util.concurrent.ConcurrentHashMap;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
 public class GameEventListener {
 
-
+    // --- Configuration Constants ---
     private static final String VOICE_MODEL = "pm_alex";
-    private static final int EVENT_TRIGGER_TICKS = 600; 
-    private static final int MAX_RECENT_ACTIONS = 10;
-
-
-    private static final float CRITICAL_HEALTH = 4.0f;
-    private static final int CRITICAL_HUNGER = 4;
+    private static final int MAX_BUFFER_SIZE = 10;
+    private static final long FLUSH_INTERVAL_MS = 5000L; // 5 seconds hybrid flush
+    
+    // --- Threshold Constants ---
+    private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f;
+    private static final int CRITICAL_HUNGER_THRESHOLD = 4;
     private static final int Y_LEVEL_DEEP = 15;
     private static final int Y_LEVEL_HIGH = 120;
 
-    private static final List<String> recentActions = new ArrayList<>();
-    private static int tickCounter = 0;
+    // --- Thread-Safe Encapsulated State (Player Isolation) ---
+    private static final Map<UUID, List<ActionEntry>> playerBuffers = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> lastFlushTimes = new ConcurrentHashMap<>();
+    private static final Map<UUID, List<String>> hotbarCaches = new ConcurrentHashMap<>();
 
     public static void register() {
         registerConnectionEvents();
         registerInteractionEvents();
         registerCombatEvents();
-        registerChatAndAdvancements(); // 
-        registerTickEvent();
+        registerChatAndAdvancements();
     }
+
+    // --- Event Registrations ---
 
     private static void registerConnectionEvents() {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
             if (player != null) {
-                player.sendMessage(Text.literal("§a[Narrador.IA v1.3] §fSistema de Telemetria Avançada Ativado!"), false);
-                sendImmediateEvent("player_join", "O jogador " + player.getName().getString() + " entrou no mundo.", player);
+                // Initialize player isolated state
+                UUID uuid = player.getUuid();
+                playerBuffers.putIfAbsent(uuid, new ArrayList<>());
+                lastFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
+                
+                player.sendMessage(Text.literal("§a[Narrador.IA v1.3] §fAdvanced Telemetry Online!"), false);
+                addActionAndCheckFlush("System", "Player joined the world", player, true);
             }
         });
 
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            // Clean up memory to prevent leaks
+            UUID uuid = handler.getPlayer().getUuid();
+            playerBuffers.remove(uuid);
+            lastFlushTimes.remove(uuid);
+            hotbarCaches.remove(uuid);
+        });
+
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-            sendImmediateEvent("player_death", "O jogador morreu tragicamente e renasceu.", newPlayer);
+            addActionAndCheckFlush("System", "Player respawned after death", newPlayer, true);
         });
     }
 
-  
     private static void registerChatAndAdvancements() {
         ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) -> {
             if (sender != null) {
-                String texto = message.getContent().getString();
-                addAction("O jogador disse no chat: " + texto);
+                addActionAndCheckFlush("Chat", message.getContent().getString(), sender, false);
             }
         });
 
         ServerMessageEvents.GAME_MESSAGE.register((server, message, overlay) -> {
-            String texto = message.getString();
-            if (texto.contains("conseguiu a conquista") || texto.contains("fez o progresso") || texto.contains("advancement")) {
-                addAction("Conseguiu a conquista: " + texto);
+            String text = message.getString();
+            if (text.contains("conseguiu a conquista") || text.contains("fez o progresso") || text.contains("advancement")) {
+                if (!server.getPlayerManager().getPlayerList().isEmpty()) {
+                    ServerPlayerEntity player = server.getPlayerManager().getPlayerList().get(0);
+                    addActionAndCheckFlush("Achievement", text, player, true);
+                }
             }
         });
     }
 
     private static void registerInteractionEvents() {
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
-            String block = state.getBlock().getName().getString();
-            String item = getItemInMainHand(player);
-            addAction("Quebrou: " + block + " (Usando: " + item + ")");
+            if (!world.isClient() && player instanceof ServerPlayerEntity serverPlayer) {
+                String blockName = state.getBlock().getName().getString();
+                addActionAndCheckFlush("Broke", blockName, serverPlayer, false);
+            }
         });
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (!world.isClient() && hand == Hand.MAIN_HAND && player instanceof ServerPlayerEntity) {
-                if (!player.getStackInHand(hand).isEmpty()) {
-                    String item = player.getStackInHand(hand).getItem().getName().getString();
-                    addAction("Usou/Colocou: " + item);
+            if (!world.isClient() && hand == Hand.MAIN_HAND && player instanceof ServerPlayerEntity serverPlayer) {
+                ItemStack stack = player.getStackInHand(hand);
+                if (!stack.isEmpty() && stack.getItem() instanceof BlockItem) {
+                    addActionAndCheckFlush("Placed", stack.getItem().getName().getString(), serverPlayer, false);
                 }
             }
             return ActionResult.PASS;
+        });
+
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            if (!world.isClient() && hand == Hand.MAIN_HAND && player instanceof ServerPlayerEntity serverPlayer) {
+                ItemStack stack = player.getStackInHand(hand);
+                if (!stack.isEmpty()) {
+                    String actionType = stack.getItem().getComponents().contains(net.minecraft.component.DataComponentTypes.FOOD) ? "Consumed" : "Used";
+                    addActionAndCheckFlush(actionType, stack.getItem().getName().getString(), serverPlayer, false);
+                }
+            }
+            return TypedActionResult.pass(player.getStackInHand(hand));
         });
     }
 
     private static void registerCombatEvents() {
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
-            if (!world.isClient() && player instanceof ServerPlayerEntity) {
-                String target = entity.getName().getString();
-                String item = getItemInMainHand((ServerPlayerEntity) player);
-                addAction("Atacou: " + target + " (Usando: " + item + ")");
+            if (!world.isClient() && player instanceof ServerPlayerEntity serverPlayer) {
+                addActionAndCheckFlush("Attacked", entity.getName().getString(), serverPlayer, false);
             }
             return ActionResult.PASS;
         });
 
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
-            if (entity instanceof ServerPlayerEntity) {
-                addAction("Sofreu dano de: " + source.getName());
+            if (entity instanceof ServerPlayerEntity serverPlayer) {
+                float projectedHealth = serverPlayer.getHealth() - amount;
+                boolean isCritical = projectedHealth <= CRITICAL_HEALTH_THRESHOLD;
+                
+                // Enhanced damage context
+                String attackerName = source.getAttacker() != null ? source.getAttacker().getName().getString() : "Environment";
+                String damageContext = String.format("%s (Source: %s)", source.getName(), attackerName);
+                
+                addActionAndCheckFlush("Took Damage", damageContext, serverPlayer, isCritical);
             }
             return true;
         });
     }
 
-    private static void registerTickEvent() {
-        ServerTickEvents.END_SERVER_TICK.register(server -> {
-            tickCounter++;
-            if (tickCounter >= EVENT_TRIGGER_TICKS) {
-                tickCounter = 0;
-              
-                if (!server.getPlayerManager().getPlayerList().isEmpty()) {
-                    processTelemetryBuffer(server.getPlayerManager().getPlayerList().get(0));
+    // --- Core Telemetry Logic ---
+
+    private static void addActionAndCheckFlush(String actionType, String target, ServerPlayerEntity player, boolean isCritical) {
+        UUID uuid = player.getUuid();
+        playerBuffers.putIfAbsent(uuid, new ArrayList<>());
+        List<ActionEntry> buffer = playerBuffers.get(uuid);
+
+        long now = System.currentTimeMillis();
+
+        // Strict thread synchronization for the specific player's buffer
+        synchronized (buffer) {
+            if (!buffer.isEmpty()) {
+                ActionEntry lastEntry = buffer.get(buffer.size() - 1);
+                if (lastEntry.getActionType().equals(actionType) && lastEntry.getTarget().equals(target)) {
+                    lastEntry.incrementCount();
+                    lastEntry.updateTimestamp(now);
+                } else {
+                    buffer.add(new ActionEntry(actionType, target, now));
                 }
+            } else {
+                buffer.add(new ActionEntry(actionType, target, now));
             }
-        });
-    }
 
-    private static String getItemInMainHand(ServerPlayerEntity player) {
-        return player.getMainHandStack().isEmpty() ? "Mão Nua" : player.getMainHandStack().getItem().getName().getString();
-    }
+            long lastFlush = lastFlushTimes.getOrDefault(uuid, now);
+            boolean timeTrigger = (now - lastFlush >= FLUSH_INTERVAL_MS);
 
-   
-    private static void addAction(String action) {
-        if (recentActions.size() >= MAX_RECENT_ACTIONS) {
-            recentActions.remove(0); 
+            // Hybrid condition: Critical OR Buffer Full OR Time Elapsed
+            if (isCritical || buffer.size() >= MAX_BUFFER_SIZE || timeTrigger) {
+                prepareAndFlushPayload(player, buffer, now);
+            }
         }
-        recentActions.add(action);
     }
 
-    private static void sendImmediateEvent(String eventType, String eventContext, ServerPlayerEntity player) {
-        recentActions.clear();
-        addAction(eventContext);
-        processTelemetryBuffer(player);
-    }
+    /**
+     * Extracts thread-sensitive data on the Main Thread and creates an immutable snapshot.
+     */
+    private static void prepareAndFlushPayload(ServerPlayerEntity player, List<ActionEntry> buffer, long flushTime) {
+        UUID uuid = player.getUuid();
+        
+        // 1. Thread-safe snapshot of the buffer
+        List<ActionEntry> snapshot = new ArrayList<>(buffer);
+        buffer.clear();
+        lastFlushTimes.put(uuid, flushTime);
 
-    private static void processTelemetryBuffer(ServerPlayerEntity player) {
-        List<String> criticalStates = new ArrayList<>();
+        // 2. Main-Thread Data Extraction (Cannot be done in CompletableFuture)
         float health = player.getHealth();
         int hunger = player.getHungerManager().getFoodLevel();
         int yLevel = (int) player.getY();
 
-        if (health <= CRITICAL_HEALTH) criticalStates.add("Vida Crítica: " + health + "/20");
-        if (hunger <= CRITICAL_HUNGER) criticalStates.add("Fome Extrema: " + hunger + "/20");
-        if (yLevel <= Y_LEVEL_DEEP) criticalStates.add("Localização: Y=" + yLevel + " (Caverna/Profundezas)");
-        else if (yLevel >= Y_LEVEL_HIGH) criticalStates.add("Localização: Y=" + yLevel + " (Altitude Elevada)");
-
-        if (recentActions.isEmpty() && criticalStates.isEmpty()) {
-            return; 
-        }
-
-        JsonArray hotbarArray = new JsonArray();
+        List<String> currentHotbar = new ArrayList<>();
         for (int i = 0; i < 9; i++) {
             ItemStack stack = player.getInventory().getStack(i);
-            hotbarArray.add(stack.isEmpty() ? "Vazio" : stack.getItem().getName().getString());
+            currentHotbar.add(stack.isEmpty() ? "Empty" : stack.getItem().getName().getString());
         }
 
+        // 3. Hotbar Diff Strategy
+        boolean hotbarChanged = false;
+        List<String> cachedHotbar = hotbarCaches.get(uuid);
+        if (cachedHotbar == null || !cachedHotbar.equals(currentHotbar)) {
+            hotbarChanged = true;
+            hotbarCaches.put(uuid, currentHotbar);
+        }
+
+        // Pass variables to async scope
+        final boolean sendHotbar = hotbarChanged;
+        
+        CompletableFuture.runAsync(() -> {
+            buildAndSendJson(snapshot, health, hunger, yLevel, currentHotbar, sendHotbar);
+        });
+    }
+
+    /**
+     * Heavy JSON stringification executed entirely on worker thread.
+     */
+    private static void buildAndSendJson(List<ActionEntry> snapshot, float health, int hunger, int yLevel, List<String> hotbar, boolean sendHotbar) {
         JsonObject payload = new JsonObject();
         payload.addProperty("voice_model", VOICE_MODEL);
-        
+
         JsonArray statesArray = new JsonArray();
-        criticalStates.forEach(statesArray::add);
+        if (health <= CRITICAL_HEALTH_THRESHOLD) statesArray.add("Critical Health: " + health + "/20");
+        if (hunger <= CRITICAL_HUNGER_THRESHOLD) statesArray.add("Extreme Hunger: " + hunger + "/20");
+        if (yLevel <= Y_LEVEL_DEEP) statesArray.add("Location: Y=" + yLevel + " (Deep Caves)");
+        else if (yLevel >= Y_LEVEL_HIGH) statesArray.add("Location: Y=" + yLevel + " (High Altitude)");
         payload.add("critical_states", statesArray);
-        
-        payload.add("hotbar", hotbarArray);
+
+        if (sendHotbar) {
+            JsonArray hotbarArray = new JsonArray();
+            hotbar.forEach(hotbarArray::add);
+            payload.add("hotbar", hotbarArray);
+        }
 
         JsonArray actionsArray = new JsonArray();
-        recentActions.forEach(actionsArray::add);
+        for (ActionEntry entry : snapshot) {
+            actionsArray.add(entry.formatOutput());
+        }
         payload.add("recent_actions", actionsArray);
 
-        
-        String jsonPayload = payload.toString();
+        HttpAssistant.sendStructuredTelemetry(payload.toString());
+    }
 
-       
-        CompletableFuture.runAsync(() -> {
-            HttpAssistant.sendStructuredTelemetry(jsonPayload);
-        });
+    // --- Inner Object-Oriented Structures ---
 
-        recentActions.clear();
+    private static class ActionEntry {
+        private final String actionType;
+        private final String target;
+        private int count;
+        private long lastTimestamp;
+
+        public ActionEntry(String actionType, String target, long timestamp) {
+            this.actionType = actionType;
+            this.target = target;
+            this.count = 1;
+            this.lastTimestamp = timestamp;
+        }
+
+        public String getActionType() { return actionType; }
+        public String getTarget() { return target; }
+        public void incrementCount() { this.count++; }
+        public void updateTimestamp(long timestamp) { this.lastTimestamp = timestamp; }
+
+        public String formatOutput() {
+            return count > 1 
+                ? String.format("[%s] %dx %s", actionType, count, target)
+                : String.format("[%s] %s", actionType, target);
+        }
     }
 }
