@@ -16,24 +16,24 @@ import net.minecraft.text.Text;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
 public class GameEventListener {
 
-    // --- CONSTANTES (Configurações do Sistema) ---
+
     private static final String VOICE_MODEL = "pm_alex";
-    private static final int EVENT_TRIGGER_TICKS = 200; 
+    private static final int EVENT_TRIGGER_TICKS = 600; 
     private static final int MAX_RECENT_ACTIONS = 10;
-    
-    // Limiares Críticos
+
+
     private static final float CRITICAL_HEALTH = 4.0f;
     private static final int CRITICAL_HUNGER = 4;
     private static final int Y_LEVEL_DEEP = 15;
     private static final int Y_LEVEL_HIGH = 120;
 
-    // --- ESTADO INTERNO ---
     private static final List<String> recentActions = new ArrayList<>();
     private static int tickCounter = 0;
 
@@ -41,12 +41,10 @@ public class GameEventListener {
         registerConnectionEvents();
         registerInteractionEvents();
         registerCombatEvents();
+        registerChatAndAdvancements(); // 
         registerTickEvent();
     }
 
-    // ==========================================
-    // 1. EVENTOS DE CONEXÃO E ESTADO DO JOGADOR
-    // ==========================================
     private static void registerConnectionEvents() {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
@@ -61,9 +59,23 @@ public class GameEventListener {
         });
     }
 
-    // ==========================================
-    // 2. EVENTOS DE INTERAÇÃO COM O MUNDO
-    // ==========================================
+  
+    private static void registerChatAndAdvancements() {
+        ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) -> {
+            if (sender != null) {
+                String texto = message.getContent().getString();
+                addAction("O jogador disse no chat: " + texto);
+            }
+        });
+
+        ServerMessageEvents.GAME_MESSAGE.register((server, message, overlay) -> {
+            String texto = message.getString();
+            if (texto.contains("conseguiu a conquista") || texto.contains("fez o progresso") || texto.contains("advancement")) {
+                addAction("Conseguiu a conquista: " + texto);
+            }
+        });
+    }
+
     private static void registerInteractionEvents() {
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             String block = state.getBlock().getName().getString();
@@ -82,9 +94,6 @@ public class GameEventListener {
         });
     }
 
-    // ==========================================
-    // 3. EVENTOS DE COMBATE E DANO
-    // ==========================================
     private static void registerCombatEvents() {
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (!world.isClient() && player instanceof ServerPlayerEntity) {
@@ -103,14 +112,12 @@ public class GameEventListener {
         });
     }
 
-    // ==========================================
-    // 4. MOTOR DE TELEMETRIA (TICK EVENT)
-    // ==========================================
     private static void registerTickEvent() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             tickCounter++;
             if (tickCounter >= EVENT_TRIGGER_TICKS) {
                 tickCounter = 0;
+              
                 if (!server.getPlayerManager().getPlayerList().isEmpty()) {
                     processTelemetryBuffer(server.getPlayerManager().getPlayerList().get(0));
                 }
@@ -118,17 +125,16 @@ public class GameEventListener {
         });
     }
 
-    // ==========================================
-    // MÉTODOS AUXILIARES E DE PROCESSAMENTO
-    // ==========================================
     private static String getItemInMainHand(ServerPlayerEntity player) {
         return player.getMainHandStack().isEmpty() ? "Mão Nua" : player.getMainHandStack().getItem().getName().getString();
     }
 
+   
     private static void addAction(String action) {
-        if (recentActions.size() < MAX_RECENT_ACTIONS) {
-            recentActions.add(action);
+        if (recentActions.size() >= MAX_RECENT_ACTIONS) {
+            recentActions.remove(0); 
         }
+        recentActions.add(action);
     }
 
     private static void sendImmediateEvent(String eventType, String eventContext, ServerPlayerEntity player) {
@@ -149,7 +155,7 @@ public class GameEventListener {
         else if (yLevel >= Y_LEVEL_HIGH) criticalStates.add("Localização: Y=" + yLevel + " (Altitude Elevada)");
 
         if (recentActions.isEmpty() && criticalStates.isEmpty()) {
-            return; // Aborta silenciosamente se não houver contexto relevante
+            return; 
         }
 
         JsonArray hotbarArray = new JsonArray();
@@ -171,8 +177,13 @@ public class GameEventListener {
         recentActions.forEach(actionsArray::add);
         payload.add("recent_actions", actionsArray);
 
-        // Dispara para o Python 
-        HttpAssistant.sendStructuredTelemetry(payload.toString());
+        
+        String jsonPayload = payload.toString();
+
+       
+        CompletableFuture.runAsync(() -> {
+            HttpAssistant.sendStructuredTelemetry(jsonPayload);
+        });
 
         recentActions.clear();
     }
