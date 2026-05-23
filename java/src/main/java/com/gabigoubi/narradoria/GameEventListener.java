@@ -166,6 +166,18 @@ public class GameEventListener {
             }
             return true;
         });
+
+        // --- NOVA INTERCEPTAÇÃO DE MORTE NATIVA ---
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
+            if (entity instanceof ServerPlayerEntity serverPlayer) {
+                // Extrai a frase poética/trágica que o Minecraft gera automaticamente
+                String deathMessage = damageSource.getDeathMessage(serverPlayer).getString();
+                
+                // isCritical = true força a fila a ser despachada e limpa imediatamente
+                addActionAndCheckFlush("Morreu", deathMessage, serverPlayer, true);
+            }
+            return true; // Permite que a morte prossiga normalmente no jogo
+        });
     }
 
     // --- Core Telemetry Logic ---
