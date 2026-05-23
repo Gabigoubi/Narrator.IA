@@ -154,7 +154,8 @@ def fetch_ai_response(prompt: str) -> str:
         payload = {
             "model": "llama-3.3-70b-versatile",
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.5,
+            "temperature": 0.85,
+            "max_tokens": 256,
             "top_p": 0.9
         }
         print(" 🧠 [DEV - GROQ] Pinging cloud engine...")
