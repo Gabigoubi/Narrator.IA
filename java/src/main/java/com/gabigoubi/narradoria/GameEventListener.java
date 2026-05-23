@@ -349,7 +349,7 @@ public class GameEventListener {
         payload.addProperty("voice_model", VOICE_MODEL);
 
         JsonArray statesArray = new JsonArray();
-        if (health <= CRITICAL_HEALTH_THRESHOLD) statesArray.add("Risco de Morte (Vida Crítica): " + health + "/20");
+       if (health <= CRITICAL_HEALTH_THRESHOLD) statesArray.add("Risco de Morte (Vida Crítica): " + (int) health + " de vida");
         if (hunger <= CRITICAL_HUNGER_THRESHOLD) statesArray.add("Fome Extrema: " + hunger + "/20");
         
         // --- TRADUÇÃO ESPACIAL DA CAMADA Y ---
