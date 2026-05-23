@@ -6,7 +6,7 @@ from kokoro import KPipeline
 # --- CONSTANTS ---
 SAMPLE_RATE = 24000
 EDSON_VOICE_MODEL = "pm_alex" # The one and only definitive voice
-SPEECH_SPEED = 0.85
+SPEECH_SPEED = 0.80
 
 print("[BOOT] ⏳ Loading Kokoro TTS Engine into memory...")
 try:

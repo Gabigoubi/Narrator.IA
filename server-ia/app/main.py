@@ -6,8 +6,9 @@ import traceback
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from app.prompt import get_system_prompt
+from app.prompt import get_system_instructions, format_user_telemetry
 from app.tts import generate_speech_stream
+from app.memory import SlidingMemory
 
 # --- CONFIGURATION CONSTANTS ---
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
@@ -99,6 +100,9 @@ print("=" * 60 + "\n")
 
 app = FastAPI()
 
+# 2. Inicializa a memória do Edson (janela de 3 interações)
+edson_memory = SlidingMemory(max_history=3)
+
 # --- ROUTES ---
 @app.post("/narrate")
 def generate_narration(telemetry: PlayerTelemetry):
@@ -118,23 +122,27 @@ def generate_narration(telemetry: PlayerTelemetry):
         print(f" ➔ Trigger Actions:\n    {formatted_actions}")
         print("▼" * 60)
 
-        # 3. Compile System Prompt strictly following v1.3 signature
-        system_prompt = get_system_prompt(
+      # 3. Pega o histórico imediato da memória
+        current_memory = edson_memory.get_context_string()
+
+        # 4. Compila as instruções e os dados SEPARADAMENTE
+        system_rules = get_system_instructions()
+        user_data = format_user_telemetry(
+            memory_context=current_memory,
             critical_states=critical_states_str,
             hotbar=hotbar_str,
-            recent_actions=recent_actions_str,
-            persona_id=telemetry.voice_model
+            recent_actions=recent_actions_str
         )
 
-        # 4. Inference (LLM)
-        ai_text = fetch_ai_response(system_prompt)
+        # 5. Inference (LLM) - Passamos as duas partes agora
+        ai_text = fetch_ai_response(system_rules, user_data)
 
-        # 5. Synthesis (TTS)
+        # 7. Synthesis (TTS)
         print(" 🔊 [TTS] Synthesizing speech stream...")
         audio_buffer = generate_speech_stream(ai_text)
         print(" ✔️ [TTS] Audio generated and streamed to Java!\n")
 
-        # 6. Stream directly to Java AudioPlayer
+        # 8. Stream directly to Java AudioPlayer
         return StreamingResponse(audio_buffer, media_type="audio/wav")
 
     except Exception as e:
@@ -145,7 +153,8 @@ def generate_narration(telemetry: PlayerTelemetry):
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- LLM ROUTER ---
-def fetch_ai_response(prompt: str) -> str:
+# --- LLM ROUTER ---
+def fetch_ai_response(system_prompt: str, user_prompt: str) -> str:
     if IS_DEV_MODE:
         headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -153,9 +162,12 @@ def fetch_ai_response(prompt: str) -> str:
         }
         payload = {
             "model": "llama-3.3-70b-versatile",
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.85,
-            "max_tokens": 256,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.75, 
+            "max_tokens": 120,   
             "top_p": 0.9
         }
         print(" 🧠 [DEV - GROQ] Pinging cloud engine...")
@@ -163,13 +175,18 @@ def fetch_ai_response(prompt: str) -> str:
         response.raise_for_status()
         ai_text = response.json()["choices"][0]["message"]["content"].strip()
     else:
+        # Lógica para o Ollama local
         payload = {
             "model": DEFAULT_MODEL, 
-            "prompt": prompt, 
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
             "stream": False,
-            "options": {"temperature": 0.5, "top_p": 0.9, "top_k": 40}
+            "options": {"temperature": 0.8, "top_p": 0.9, "top_k": 40, "num_predict": 120}
         }
         print(f" 🧠 [LOCAL LLM] Inferring context with '{DEFAULT_MODEL}'...")
+   
         response = requests.post(OLLAMA_GENERATE_URL, json=payload, timeout=TIMEOUT_OLLAMA)
         response.raise_for_status()
         ai_text = response.json().get("response", "").strip()
