@@ -6,9 +6,12 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -54,9 +57,33 @@ public class GameEventListener {
         registerCombatEvents();
         registerChatAndAdvancements();
         registerTickEvent();
+        registerWorldAndEntityEvents(); // NOVO: Módulo de Mundo e Física
     }
 
     // --- Event Registrations ---
+
+    private static void registerWorldAndEntityEvents() {
+        // 1. Troca de Dimensão (Envia o gatilho na hora, limpo e orgânico)
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> {
+            String originName = origin.getRegistryKey().getValue().getPath(); 
+            String destName = destination.getRegistryKey().getValue().getPath();
+            
+            String context = String.format("Viajou de '%s' para '%s'", originName, destName);
+            
+            // isCritical = true para o Edson comentar a chegada no novo mundo no mesmo instante
+            addActionAndCheckFlush("Dimension Changed", context, player, true); 
+        });
+
+        // 2. Drop de Itens (Descarte Físico)
+        ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            if (entity instanceof ItemEntity itemEntity && itemEntity.getThrower() != null) {
+                ServerPlayerEntity player = (ServerPlayerEntity) world.getPlayerByUuid(itemEntity.getThrower());
+                if (player != null) {
+                    addActionAndCheckFlush("Dropped", itemEntity.getStack().getName().getString(), player, false);
+                }
+            }
+        });
+    }
 
     private static void registerConnectionEvents() {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
@@ -173,7 +200,6 @@ public class GameEventListener {
             return true;
         });
 
-        // Interceptação Nativa de Morte do Minecraft
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
             if (entity instanceof ServerPlayerEntity serverPlayer) {
                 String deathMessage = damageSource.getDeathMessage(serverPlayer).getString();
@@ -221,7 +247,8 @@ public class GameEventListener {
         });
     }
 
-    private static void addActionAndCheckFlush(String actionType, String target, ServerPlayerEntity player, boolean isCritical) {
+    // Método exposto como PUBLIC para permitir injeção externa dos Mixins (Crafting e Pickup)
+    public static void addActionAndCheckFlush(String actionType, String target, ServerPlayerEntity player, boolean isCritical) {
         UUID uuid = player.getUuid();
         playerBuffers.putIfAbsent(uuid, new ArrayList<>());
         List<ActionEntry> buffer = playerBuffers.get(uuid);
@@ -233,9 +260,7 @@ public class GameEventListener {
                 ActionEntry lastEntry = buffer.get(buffer.size() - 1);
                 
                 if (lastEntry.getActionType().equals(actionType) && lastEntry.getTarget().equals(target)) {
-                    // ESCUDO ANTI-SPAM (250ms)
                     if (now - lastEntry.getLastTimestamp() >= 250L) {
-                        // TETO DE AGREGAÇÃO DE CURTO PRAZO (Cap = 30)
                         if (lastEntry.getCount() < 30) {
                             lastEntry.incrementCount();
                         }
@@ -257,7 +282,6 @@ public class GameEventListener {
         }
     }
 
-    // Helper para preencher a memória de longo prazo sem limites de contagem
     private static void addToSessionBuffer(UUID uuid, String actionType, String target, long now) {
         List<ActionEntry> sessionBuffer = sessionBuffers.get(uuid);
         if (sessionBuffer == null) return;
@@ -307,7 +331,6 @@ public class GameEventListener {
         });
     }
 
-    // Constrói e empacota o dossiê de 10 minutos para a IA avaliar
     private static void prepareAndFlushSessionPayload(ServerPlayerEntity player, List<ActionEntry> sessionBuffer, long flushTime) {
         UUID uuid = player.getUuid();
         List<ActionEntry> snapshot = new ArrayList<>(sessionBuffer);
@@ -319,14 +342,13 @@ public class GameEventListener {
             boolean hasMeaningfulData = false;
             
             for (ActionEntry entry : snapshot) {
-                // Filtro: só anota coisas feitas >= 10 vezes, conquistas ou mortes. O resto é ruído.
                 if (entry.getCount() >= 10 || entry.getActionType().equals("Morreu") || entry.getActionType().equals("Achievement")) {
                     summary.append(entry.formatOutput()).append("\n");
                     hasMeaningfulData = true;
                 }
             }
             
-            if (!hasMeaningfulData) return; // Se o jogador ficou AFK, nem envia.
+            if (!hasMeaningfulData) return; 
             
             JsonObject payload = new JsonObject();
             payload.addProperty("voice_model", VOICE_MODEL);
@@ -335,7 +357,6 @@ public class GameEventListener {
             actionsArray.add(summary.toString());
             payload.add("recent_actions", actionsArray);
             
-            // Injeção de Comando Dinâmico para forçar o Edson a avaliar o resumo
             JsonArray statesArray = new JsonArray();
             statesArray.add("Atenção: Faça uma avaliação geral do progresso (ou falta dele) baseada neste resumo de longo prazo.");
             payload.add("critical_states", statesArray);
@@ -349,10 +370,9 @@ public class GameEventListener {
         payload.addProperty("voice_model", VOICE_MODEL);
 
         JsonArray statesArray = new JsonArray();
-       if (health <= CRITICAL_HEALTH_THRESHOLD) statesArray.add("Risco de Morte (Vida Crítica): " + (int) health + " de vida");
+        if (health <= CRITICAL_HEALTH_THRESHOLD) statesArray.add("Risco de Morte (Vida Crítica): " + (int) health + " de vida");
         if (hunger <= CRITICAL_HUNGER_THRESHOLD) statesArray.add("Fome Extrema: " + hunger + "/20");
         
-        // --- TRADUÇÃO ESPACIAL DA CAMADA Y ---
         if (yLevel >= 120) {
             statesArray.add("Local: Montanhas altas e picos nevados (Y=" + yLevel + ")");
         } else if (yLevel >= 80) {
