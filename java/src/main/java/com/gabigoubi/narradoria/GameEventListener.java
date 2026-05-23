@@ -31,7 +31,8 @@ public class GameEventListener {
     // --- Configuration Constants ---
     private static final String VOICE_MODEL = "pm_alex";
     private static final int MAX_BUFFER_SIZE = 30;
-    private static final long FLUSH_INTERVAL_MS = 45000L; // 45 seconds accumulator time
+    private static final long FLUSH_INTERVAL_MS = 45000L; // 45 segundos (Curto Prazo)
+    private static final long SESSION_INTERVAL_MS = 600000L; // 10 minutos (Longo Prazo)
 
     // --- Threshold Constants ---
     private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f;
@@ -42,13 +43,17 @@ public class GameEventListener {
     private static final Map<UUID, Long> lastFlushTimes = new ConcurrentHashMap<>();
     private static final Map<UUID, List<String>> hotbarCaches = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastEatTimes = new ConcurrentHashMap<>();
+    
+    // NOVO: Controle da Sessão de 10 Minutos
+    private static final Map<UUID, List<ActionEntry>> sessionBuffers = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> lastSessionFlushTimes = new ConcurrentHashMap<>();
 
     public static void register() {
         registerConnectionEvents();
         registerInteractionEvents();
         registerCombatEvents();
         registerChatAndAdvancements();
-        registerTickEvent(); // NOVO: Relógio de varredura independente
+        registerTickEvent();
     }
 
     // --- Event Registrations ---
@@ -57,28 +62,31 @@ public class GameEventListener {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
             if (player != null) {
-                // Initialize player isolated state
                 UUID uuid = player.getUuid();
+                
+                // Inicializa o estado de Curto Prazo
                 playerBuffers.putIfAbsent(uuid, new ArrayList<>());
                 lastFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
+                
+                // Inicializa o estado de Longo Prazo (Sessão)
+                sessionBuffers.putIfAbsent(uuid, new ArrayList<>());
+                lastSessionFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
 
                 player.sendMessage(Text.literal("§a[Narrador.IA v1.3] §fAdvanced Telemetry Online!"), false);
 
-                // Prompt Injection within Java: Forcing the LLM to output the specific welcome vibe
                 String playerName = player.getName().getString();
                 String welcomeInstruction = String.format("O jogador %s acabou de entrar. Receba-o EXATAMENTE com esta vibe: 'Eita, o jogador %s entrou no mundo....... o que será que esse noiao vai fazer hein...'", playerName, playerName);
-
-                // We keep isCritical = true so it flushes immediately while the world is rendering
                 addActionAndCheckFlush("BOAS-VINDAS", welcomeInstruction, player, true);
             }
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-            // Clean up memory to prevent leaks
             UUID uuid = handler.getPlayer().getUuid();
             playerBuffers.remove(uuid);
             lastFlushTimes.remove(uuid);
             hotbarCaches.remove(uuid);
+            sessionBuffers.remove(uuid);
+            lastSessionFlushTimes.remove(uuid);
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
@@ -131,7 +139,6 @@ public class GameEventListener {
 
                     if (isFood) {
                         long lastEat = lastEatTimes.getOrDefault(player.getUuid(), 0L);
-                        // Trava de 2 segundos (tempo de animação de comer) para evitar spam de eventos
                         if (now - lastEat >= 2000L) {
                             lastEatTimes.put(player.getUuid(), now);
                             addActionAndCheckFlush("Consumed", stack.getItem().getName().getString(), serverPlayer, false);
@@ -158,7 +165,6 @@ public class GameEventListener {
                 float projectedHealth = serverPlayer.getHealth() - amount;
                 boolean isCritical = projectedHealth <= CRITICAL_HEALTH_THRESHOLD;
 
-                // Enhanced damage context
                 String attackerName = source.getAttacker() != null ? source.getAttacker().getName().getString() : "Environment";
                 String damageContext = String.format("%s (Source: %s)", source.getName(), attackerName);
 
@@ -167,38 +173,46 @@ public class GameEventListener {
             return true;
         });
 
-        // --- NOVA INTERCEPTAÇÃO DE MORTE NATIVA ---
+        // Interceptação Nativa de Morte do Minecraft
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
             if (entity instanceof ServerPlayerEntity serverPlayer) {
-                // Extrai a frase poética/trágica que o Minecraft gera automaticamente
                 String deathMessage = damageSource.getDeathMessage(serverPlayer).getString();
-                
-                // isCritical = true força a fila a ser despachada e limpa imediatamente
                 addActionAndCheckFlush("Morreu", deathMessage, serverPlayer, true);
             }
-            return true; // Permite que a morte prossiga normalmente no jogo
+            return true; 
         });
     }
 
     // --- Core Telemetry Logic ---
 
-    // NOVO: Varredura de Tempo Independente baseada no relógio do Servidor
     private static void registerTickEvent() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             long now = System.currentTimeMillis();
 
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 UUID uuid = player.getUuid();
+                
+                // 1. Varredura de Curto Prazo (45 Segundos)
                 List<ActionEntry> buffer = playerBuffers.get(uuid);
-
                 if (buffer != null && !buffer.isEmpty()) {
                     long lastFlush = lastFlushTimes.getOrDefault(uuid, now);
-
-                    // Se passou o tempo configurado (45s) desde o último envio E tem ações acumuladas
                     if (now - lastFlush >= FLUSH_INTERVAL_MS) {
                         synchronized (buffer) {
                             if (!buffer.isEmpty()) {
                                 prepareAndFlushPayload(player, buffer, now);
+                            }
+                        }
+                    }
+                }
+                
+                // 2. Varredura de Longo Prazo (Sessão de 10 Minutos)
+                List<ActionEntry> sessionBuffer = sessionBuffers.get(uuid);
+                if (sessionBuffer != null && !sessionBuffer.isEmpty()) {
+                    long lastSessionFlush = lastSessionFlushTimes.getOrDefault(uuid, now);
+                    if (now - lastSessionFlush >= SESSION_INTERVAL_MS) {
+                        synchronized (sessionBuffer) {
+                            if (!sessionBuffer.isEmpty()) {
+                                prepareAndFlushSessionPayload(player, sessionBuffer, now);
                             }
                         }
                     }
@@ -214,52 +228,62 @@ public class GameEventListener {
 
         long now = System.currentTimeMillis();
 
-        // Strict thread synchronization for the specific player's buffer
         synchronized (buffer) {
             if (!buffer.isEmpty()) {
                 ActionEntry lastEntry = buffer.get(buffer.size() - 1);
                 
-                // Se for a mesma ação no mesmo alvo, entra a validação
                 if (lastEntry.getActionType().equals(actionType) && lastEntry.getTarget().equals(target)) {
-                    
-                    // 1. O ESCUDO ANTI-SPAM (Debounce de 250ms)
+                    // ESCUDO ANTI-SPAM (250ms)
                     if (now - lastEntry.getLastTimestamp() >= 250L) {
-                        
-                        // 2. O TETO DE AGREGAÇÃO (Cap = 30)
+                        // TETO DE AGREGAÇÃO DE CURTO PRAZO (Cap = 30)
                         if (lastEntry.getCount() < 30) {
                             lastEntry.incrementCount();
                         }
-                        
-                        // Atualiza o relógio independente de ter batido no teto ou não
                         lastEntry.updateTimestamp(now); 
+                        addToSessionBuffer(uuid, actionType, target, now);
                     }
                 } else {
                     buffer.add(new ActionEntry(actionType, target, now));
+                    addToSessionBuffer(uuid, actionType, target, now);
                 }
             } else {
                 buffer.add(new ActionEntry(actionType, target, now));
+                addToSessionBuffer(uuid, actionType, target, now);
             }
 
-            // O gatilho principal agora é ESTRITAMENTE o tempo (TickEvent).
-            // APENAS risco crítico fura a fila.
             if (isCritical) {
                 prepareAndFlushPayload(player, buffer, now);
             }
         }
     }
 
-    /**
-     * Extracts thread-sensitive data on the Main Thread and creates an immutable snapshot.
-     */
+    // Helper para preencher a memória de longo prazo sem limites de contagem
+    private static void addToSessionBuffer(UUID uuid, String actionType, String target, long now) {
+        List<ActionEntry> sessionBuffer = sessionBuffers.get(uuid);
+        if (sessionBuffer == null) return;
+        
+        synchronized (sessionBuffer) {
+            boolean found = false;
+            for (ActionEntry entry : sessionBuffer) {
+                if (entry.getActionType().equals(actionType) && entry.getTarget().equals(target)) {
+                    entry.incrementCount(); 
+                    entry.updateTimestamp(now);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                sessionBuffer.add(new ActionEntry(actionType, target, now));
+            }
+        }
+    }
+
     private static void prepareAndFlushPayload(ServerPlayerEntity player, List<ActionEntry> buffer, long flushTime) {
         UUID uuid = player.getUuid();
-
-        // 1. Thread-safe snapshot of the buffer
         List<ActionEntry> snapshot = new ArrayList<>(buffer);
         buffer.clear();
         lastFlushTimes.put(uuid, flushTime);
 
-        // 2. Main-Thread Data Extraction (Cannot be done in CompletableFuture)
         float health = player.getHealth();
         int hunger = player.getHungerManager().getFoodLevel();
         int yLevel = (int) player.getY();
@@ -270,7 +294,6 @@ public class GameEventListener {
             currentHotbar.add(stack.isEmpty() ? "Empty" : stack.getItem().getName().getString());
         }
 
-        // 3. Hotbar Diff Strategy
         boolean hotbarChanged = false;
         List<String> cachedHotbar = hotbarCaches.get(uuid);
         if (cachedHotbar == null || !cachedHotbar.equals(currentHotbar)) {
@@ -278,17 +301,49 @@ public class GameEventListener {
             hotbarCaches.put(uuid, currentHotbar);
         }
 
-        // Pass variables to async scope
         final boolean sendHotbar = hotbarChanged;
-
         CompletableFuture.runAsync(() -> {
             buildAndSendJson(snapshot, health, hunger, yLevel, currentHotbar, sendHotbar);
         });
     }
 
-    /**
-     * Heavy JSON stringification executed entirely on worker thread.
-     */
+    // Constrói e empacota o dossiê de 10 minutos para a IA avaliar
+    private static void prepareAndFlushSessionPayload(ServerPlayerEntity player, List<ActionEntry> sessionBuffer, long flushTime) {
+        UUID uuid = player.getUuid();
+        List<ActionEntry> snapshot = new ArrayList<>(sessionBuffer);
+        sessionBuffer.clear();
+        lastSessionFlushTimes.put(uuid, flushTime);
+
+        CompletableFuture.runAsync(() -> {
+            StringBuilder summary = new StringBuilder("RESUMO DOS ÚLTIMOS 10 MINUTOS:\n");
+            boolean hasMeaningfulData = false;
+            
+            for (ActionEntry entry : snapshot) {
+                // Filtro: só anota coisas feitas >= 10 vezes, conquistas ou mortes. O resto é ruído.
+                if (entry.getCount() >= 10 || entry.getActionType().equals("Morreu") || entry.getActionType().equals("Achievement")) {
+                    summary.append(entry.formatOutput()).append("\n");
+                    hasMeaningfulData = true;
+                }
+            }
+            
+            if (!hasMeaningfulData) return; // Se o jogador ficou AFK, nem envia.
+            
+            JsonObject payload = new JsonObject();
+            payload.addProperty("voice_model", VOICE_MODEL);
+            
+            JsonArray actionsArray = new JsonArray();
+            actionsArray.add(summary.toString());
+            payload.add("recent_actions", actionsArray);
+            
+            // Injeção de Comando Dinâmico para forçar o Edson a avaliar o resumo
+            JsonArray statesArray = new JsonArray();
+            statesArray.add("Atenção: Faça uma avaliação geral do progresso (ou falta dele) baseada neste resumo de longo prazo.");
+            payload.add("critical_states", statesArray);
+
+            HttpAssistant.sendStructuredTelemetry(payload.toString());
+        });
+    }
+
     private static void buildAndSendJson(List<ActionEntry> snapshot, float health, int hunger, int yLevel, List<String> hotbar, boolean sendHotbar) {
         JsonObject payload = new JsonObject();
         payload.addProperty("voice_model", VOICE_MODEL);
@@ -297,6 +352,7 @@ public class GameEventListener {
         if (health <= CRITICAL_HEALTH_THRESHOLD) statesArray.add("Risco de Morte (Vida Crítica): " + health + "/20");
         if (hunger <= CRITICAL_HUNGER_THRESHOLD) statesArray.add("Fome Extrema: " + hunger + "/20");
         
+        // --- TRADUÇÃO ESPACIAL DA CAMADA Y ---
         if (yLevel >= 120) {
             statesArray.add("Local: Montanhas altas e picos nevados (Y=" + yLevel + ")");
         } else if (yLevel >= 80) {
@@ -314,7 +370,6 @@ public class GameEventListener {
         }
         
         payload.add("critical_states", statesArray);
-
 
         if (sendHotbar) {
             JsonArray hotbarArray = new JsonArray();
