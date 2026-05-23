@@ -36,8 +36,6 @@ public class GameEventListener {
     // --- Threshold Constants ---
     private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f;
     private static final int CRITICAL_HUNGER_THRESHOLD = 4;
-    private static final int Y_LEVEL_DEEP = 15;
-    private static final int Y_LEVEL_HIGH = 120;
 
     // --- Thread-Safe Encapsulated State (Player Isolation) ---
     private static final Map<UUID, List<ActionEntry>> playerBuffers = new ConcurrentHashMap<>();
@@ -284,11 +282,27 @@ public class GameEventListener {
         payload.addProperty("voice_model", VOICE_MODEL);
 
         JsonArray statesArray = new JsonArray();
-        if (health <= CRITICAL_HEALTH_THRESHOLD) statesArray.add("Critical Health: " + health + "/20");
-        if (hunger <= CRITICAL_HUNGER_THRESHOLD) statesArray.add("Extreme Hunger: " + hunger + "/20");
-        if (yLevel <= Y_LEVEL_DEEP) statesArray.add("Location: Y=" + yLevel + " (Deep Caves)");
-        else if (yLevel >= Y_LEVEL_HIGH) statesArray.add("Location: Y=" + yLevel + " (High Altitude)");
+        if (health <= CRITICAL_HEALTH_THRESHOLD) statesArray.add("Risco de Morte (Vida Crítica): " + health + "/20");
+        if (hunger <= CRITICAL_HUNGER_THRESHOLD) statesArray.add("Fome Extrema: " + hunger + "/20");
+        
+        if (yLevel >= 120) {
+            statesArray.add("Local: Montanhas altas e picos nevados (Y=" + yLevel + ")");
+        } else if (yLevel >= 80) {
+            statesArray.add("Local: Platôs, colinas e subidas (Y=" + yLevel + ")");
+        } else if (yLevel >= 55) {
+            statesArray.add("Local: Nível do mar, planícies e terra firme (Y=" + yLevel + ")");
+        } else if (yLevel >= 1) {
+            statesArray.add("Local: Subsolo e cavernas comuns (Y=" + yLevel + ")");
+        } else if (yLevel == 0) {
+            statesArray.add("Local: Transição para ardósia profunda (Y=0)");
+        } else if (yLevel >= -63) {
+            statesArray.add("Local: Cavernas profundas (Deepslate) (Y=" + yLevel + ")");
+        } else {
+            statesArray.add("Local: Fim do mundo (Bedrock) (Y=" + yLevel + ")");
+        }
+        
         payload.add("critical_states", statesArray);
+
 
         if (sendHotbar) {
             JsonArray hotbarArray = new JsonArray();
