@@ -148,6 +148,13 @@ public class GameEventListener {
         });
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+
+            net.fabricmc.fabric.api.entity.event.v1.PlayerEntityEvents.STOP_SLEEPING.register((entity, sleepingPos) -> {
+    if (entity instanceof ServerPlayerEntity player) {
+        // Edson descobre se o cara dormiu, acordou.
+        addActionAndCheckFlush("Woke Up", "Cama", player, false);
+    }
+});
             if (!world.isClient() && hand == Hand.MAIN_HAND && player instanceof ServerPlayerEntity serverPlayer) {
                 ItemStack stack = player.getStackInHand(hand);
                 if (!stack.isEmpty() && stack.getItem() instanceof BlockItem) {
