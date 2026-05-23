@@ -31,7 +31,7 @@ public class GameEventListener {
     // --- Configuration Constants ---
     private static final String VOICE_MODEL = "pm_alex";
     private static final int MAX_BUFFER_SIZE = 30;
-    private static final long FLUSH_INTERVAL_MS = 45000L; // 15 seconds accumulator time
+    private static final long FLUSH_INTERVAL_MS = 45000L; // 45 seconds accumulator time
 
     // --- Threshold Constants ---
     private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f;
@@ -184,7 +184,7 @@ public class GameEventListener {
                 if (buffer != null && !buffer.isEmpty()) {
                     long lastFlush = lastFlushTimes.getOrDefault(uuid, now);
 
-                    // Se passou o tempo configurado (15s) desde o último envio E tem ações acumuladas
+                    // Se passou o tempo configurado (45s) desde o último envio E tem ações acumuladas
                     if (now - lastFlush >= FLUSH_INTERVAL_MS) {
                         synchronized (buffer) {
                             if (!buffer.isEmpty()) {
@@ -208,9 +208,21 @@ public class GameEventListener {
         synchronized (buffer) {
             if (!buffer.isEmpty()) {
                 ActionEntry lastEntry = buffer.get(buffer.size() - 1);
+                
+                // Se for a mesma ação no mesmo alvo, entra a validação
                 if (lastEntry.getActionType().equals(actionType) && lastEntry.getTarget().equals(target)) {
-                    lastEntry.incrementCount();
-                    lastEntry.updateTimestamp(now);
+                    
+                    // 1. O ESCUDO ANTI-SPAM (Debounce de 250ms)
+                    if (now - lastEntry.getLastTimestamp() >= 250L) {
+                        
+                        // 2. O TETO DE AGREGAÇÃO (Cap = 30)
+                        if (lastEntry.getCount() < 30) {
+                            lastEntry.incrementCount();
+                        }
+                        
+                        // Atualiza o relógio independente de ter batido no teto ou não
+                        lastEntry.updateTimestamp(now); 
+                    }
                 } else {
                     buffer.add(new ActionEntry(actionType, target, now));
                 }
@@ -218,6 +230,8 @@ public class GameEventListener {
                 buffer.add(new ActionEntry(actionType, target, now));
             }
 
+            // O gatilho principal agora é ESTRITAMENTE o tempo (TickEvent).
+            // APENAS risco crítico fura a fila.
             if (isCritical) {
                 prepareAndFlushPayload(player, buffer, now);
             }
@@ -308,6 +322,9 @@ public class GameEventListener {
 
         public String getActionType() { return actionType; }
         public String getTarget() { return target; }
+        public int getCount() { return count; } 
+        public long getLastTimestamp() { return lastTimestamp; } 
+        
         public void incrementCount() { this.count++; }
         public void updateTimestamp(long timestamp) { this.lastTimestamp = timestamp; }
 
