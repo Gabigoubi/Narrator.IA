@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.item.BlockItem;
@@ -29,9 +30,9 @@ public class GameEventListener {
 
     // --- Configuration Constants ---
     private static final String VOICE_MODEL = "pm_alex";
-    private static final int MAX_BUFFER_SIZE = 10;
-    private static final long FLUSH_INTERVAL_MS = 5000L; // 5 seconds hybrid flush
-    
+    private static final int MAX_BUFFER_SIZE = 30;
+    private static final long FLUSH_INTERVAL_MS = 45000L; // 15 seconds accumulator time
+
     // --- Threshold Constants ---
     private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f;
     private static final int CRITICAL_HUNGER_THRESHOLD = 4;
@@ -42,12 +43,14 @@ public class GameEventListener {
     private static final Map<UUID, List<ActionEntry>> playerBuffers = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastFlushTimes = new ConcurrentHashMap<>();
     private static final Map<UUID, List<String>> hotbarCaches = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> lastEatTimes = new ConcurrentHashMap<>();
 
     public static void register() {
         registerConnectionEvents();
         registerInteractionEvents();
         registerCombatEvents();
         registerChatAndAdvancements();
+        registerTickEvent(); // NOVO: Relógio de varredura independente
     }
 
     // --- Event Registrations ---
@@ -60,9 +63,15 @@ public class GameEventListener {
                 UUID uuid = player.getUuid();
                 playerBuffers.putIfAbsent(uuid, new ArrayList<>());
                 lastFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
-                
+
                 player.sendMessage(Text.literal("§a[Narrador.IA v1.3] §fAdvanced Telemetry Online!"), false);
-                addActionAndCheckFlush("System", "Player joined the world", player, true);
+
+                // Prompt Injection within Java: Forcing the LLM to output the specific welcome vibe
+                String playerName = player.getName().getString();
+                String welcomeInstruction = String.format("O jogador %s acabou de entrar. Receba-o EXATAMENTE com esta vibe: 'Eita, o jogador %s entrou no mundo....... o que será que esse noiao vai fazer hein...'", playerName, playerName);
+
+                // We keep isCritical = true so it flushes immediately while the world is rendering
+                addActionAndCheckFlush("BOAS-VINDAS", welcomeInstruction, player, true);
             }
         });
 
@@ -119,8 +128,19 @@ public class GameEventListener {
             if (!world.isClient() && hand == Hand.MAIN_HAND && player instanceof ServerPlayerEntity serverPlayer) {
                 ItemStack stack = player.getStackInHand(hand);
                 if (!stack.isEmpty()) {
-                    String actionType = stack.getItem().getComponents().contains(net.minecraft.component.DataComponentTypes.FOOD) ? "Consumed" : "Used";
-                    addActionAndCheckFlush(actionType, stack.getItem().getName().getString(), serverPlayer, false);
+                    boolean isFood = stack.getItem().getComponents().contains(net.minecraft.component.DataComponentTypes.FOOD);
+                    long now = System.currentTimeMillis();
+
+                    if (isFood) {
+                        long lastEat = lastEatTimes.getOrDefault(player.getUuid(), 0L);
+                        // Trava de 2 segundos (tempo de animação de comer) para evitar spam de eventos
+                        if (now - lastEat >= 2000L) {
+                            lastEatTimes.put(player.getUuid(), now);
+                            addActionAndCheckFlush("Consumed", stack.getItem().getName().getString(), serverPlayer, false);
+                        }
+                    } else {
+                        addActionAndCheckFlush("Used", stack.getItem().getName().getString(), serverPlayer, false);
+                    }
                 }
             }
             return TypedActionResult.pass(player.getStackInHand(hand));
@@ -139,11 +159,11 @@ public class GameEventListener {
             if (entity instanceof ServerPlayerEntity serverPlayer) {
                 float projectedHealth = serverPlayer.getHealth() - amount;
                 boolean isCritical = projectedHealth <= CRITICAL_HEALTH_THRESHOLD;
-                
+
                 // Enhanced damage context
                 String attackerName = source.getAttacker() != null ? source.getAttacker().getName().getString() : "Environment";
                 String damageContext = String.format("%s (Source: %s)", source.getName(), attackerName);
-                
+
                 addActionAndCheckFlush("Took Damage", damageContext, serverPlayer, isCritical);
             }
             return true;
@@ -151,6 +171,31 @@ public class GameEventListener {
     }
 
     // --- Core Telemetry Logic ---
+
+    // NOVO: Varredura de Tempo Independente baseada no relógio do Servidor
+    private static void registerTickEvent() {
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long now = System.currentTimeMillis();
+
+            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                UUID uuid = player.getUuid();
+                List<ActionEntry> buffer = playerBuffers.get(uuid);
+
+                if (buffer != null && !buffer.isEmpty()) {
+                    long lastFlush = lastFlushTimes.getOrDefault(uuid, now);
+
+                    // Se passou o tempo configurado (15s) desde o último envio E tem ações acumuladas
+                    if (now - lastFlush >= FLUSH_INTERVAL_MS) {
+                        synchronized (buffer) {
+                            if (!buffer.isEmpty()) {
+                                prepareAndFlushPayload(player, buffer, now);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 
     private static void addActionAndCheckFlush(String actionType, String target, ServerPlayerEntity player, boolean isCritical) {
         UUID uuid = player.getUuid();
@@ -173,11 +218,7 @@ public class GameEventListener {
                 buffer.add(new ActionEntry(actionType, target, now));
             }
 
-            long lastFlush = lastFlushTimes.getOrDefault(uuid, now);
-            boolean timeTrigger = (now - lastFlush >= FLUSH_INTERVAL_MS);
-
-            // Hybrid condition: Critical OR Buffer Full OR Time Elapsed
-            if (isCritical || buffer.size() >= MAX_BUFFER_SIZE || timeTrigger) {
+            if (isCritical) {
                 prepareAndFlushPayload(player, buffer, now);
             }
         }
@@ -188,7 +229,7 @@ public class GameEventListener {
      */
     private static void prepareAndFlushPayload(ServerPlayerEntity player, List<ActionEntry> buffer, long flushTime) {
         UUID uuid = player.getUuid();
-        
+
         // 1. Thread-safe snapshot of the buffer
         List<ActionEntry> snapshot = new ArrayList<>(buffer);
         buffer.clear();
@@ -215,7 +256,7 @@ public class GameEventListener {
 
         // Pass variables to async scope
         final boolean sendHotbar = hotbarChanged;
-        
+
         CompletableFuture.runAsync(() -> {
             buildAndSendJson(snapshot, health, hunger, yLevel, currentHotbar, sendHotbar);
         });
@@ -271,9 +312,9 @@ public class GameEventListener {
         public void updateTimestamp(long timestamp) { this.lastTimestamp = timestamp; }
 
         public String formatOutput() {
-            return count > 1 
-                ? String.format("[%s] %dx %s", actionType, count, target)
-                : String.format("[%s] %s", actionType, target);
+            return count > 1
+                    ? String.format("[%s] %dx %s", actionType, count, target)
+                    : String.format("[%s] %s", actionType, target);
         }
     }
 }

@@ -2,11 +2,12 @@ import os
 import sys
 import psutil
 import requests
+import traceback
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from prompt import get_system_prompt
-from tts import generate_speech_stream
+from app.prompt import get_system_prompt
+from app.tts import generate_speech_stream
 
 # --- CONFIGURATION CONSTANTS ---
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
@@ -34,7 +35,7 @@ if os.path.exists(".env"):
 class PlayerTelemetry(BaseModel):
     voice_model: str
     critical_states: list[str]
-    hotbar: list[str]
+    hotbar: list[str] | None = None
     recent_actions: list[str]
 
 # --- HARDWARE PROTECTION (HARD LOCK) ---
@@ -107,12 +108,14 @@ def generate_narration(telemetry: PlayerTelemetry):
         hotbar_str = ", ".join(telemetry.hotbar) if telemetry.hotbar else ""
         recent_actions_str = "\n".join(f"- {a}" for a in telemetry.recent_actions)
 
-        # 2. Visual Debug Log (Crucial for development)
+       # 2. Visual Debug Log (Crucial for development)
+        formatted_actions = recent_actions_str.replace('\n', '\n    ')
+        
         print("\n" + "▼" * 60)
         print(" 📥 [NEW TELEMETRY EVENT FROM JAVA]")
         print(f" ➔ Critical States: {critical_states_str if critical_states_str else 'None'}")
         print(f" ➔ Hotbar: [{hotbar_str}]")
-        print(f" ➔ Trigger Actions:\n    {recent_actions_str.replace('\n', '\n    ')}")
+        print(f" ➔ Trigger Actions:\n    {formatted_actions}")
         print("▼" * 60)
 
         # 3. Compile System Prompt strictly following v1.3 signature
@@ -128,7 +131,7 @@ def generate_narration(telemetry: PlayerTelemetry):
 
         # 5. Synthesis (TTS)
         print(" 🔊 [TTS] Synthesizing speech stream...")
-        audio_buffer = generate_speech_stream(ai_text, telemetry.voice_model)
+        audio_buffer = generate_speech_stream(ai_text)
         print(" ✔️ [TTS] Audio generated and streamed to Java!\n")
 
         # 6. Stream directly to Java AudioPlayer

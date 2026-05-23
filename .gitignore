@@ -4,3 +4,4 @@ java/build/
 java/run/
 server-ia/venv/
 server-ia/app/__pycache__/
+.env

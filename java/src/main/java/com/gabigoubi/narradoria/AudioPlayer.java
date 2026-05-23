@@ -64,7 +64,7 @@ public class AudioPlayer {
             } catch (Exception e) {
                 NarradorIAMod.LOGGER.error("[AudioPlayer] Erro critico ao reproduzir WAV: ", e);
             } finally {
-                HttpAssistant.isNarrating = false;
+                HttpAssistant.releaseLock();
                 System.out.println("[AudioPlayer] [UNLOCK] isNarrating = false. Mod liberado para novos eventos!");
             }
         }).start();
