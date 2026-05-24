@@ -3,6 +3,7 @@ import sys
 import psutil
 import requests
 import traceback
+import random
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -107,48 +108,111 @@ edson_memory = SlidingMemory(max_history=3)
 @app.post("/narrate")
 def generate_narration(telemetry: PlayerTelemetry):
     try:
-        # 1. Parse JSON lists into formatted strings for the prompt
-        critical_states_str = "\n".join(f"- {s}" for s in telemetry.critical_states)
-        hotbar_str = ", ".join(telemetry.hotbar) if telemetry.hotbar else ""
-        recent_actions_str = "\n".join(f"- {a}" for a in telemetry.recent_actions)
-
-       # 2. Visual Debug Log (Crucial for development)
-        formatted_actions = recent_actions_str.replace('\n', '\n    ')
+        # --- 1. O REGENTE (Motor Determinístico) ---
+        danger_score = 0
+        boredom_score = 0
+        combat_detected = False
+        high_stakes = []
         
+        for action in telemetry.recent_actions:
+            if any(keyword in action for keyword in ["Took Damage", "Morreu", "Attacked"]):
+                danger_score += 3
+                combat_detected = True
+                high_stakes.append(action)
+            elif any(keyword in action for keyword in ["Broke", "Placed", "Used"]):
+                boredom_score += 1
+                
+        for state in telemetry.critical_states:
+            if "Risco de Morte" in state or "Fome Extrema" in state:
+                danger_score += 5
+                
+# Definindo as Intent Tags detalhadas (Sem calar o Edson!)
+        if danger_score >= 5:
+            scene_type = "combat_panic"
+            tone = "aggressive_mockery"
+            focus_target = {
+                "behavior": "apanhando pra mob ou caindo",
+                "absurdity": "falha brutal de sobrevivência"
+            }
+            response_density = random.choice([
+                "explosao_indignada (2 a 3 frases gritando sobre a incompetência em combate)",
+                "pergunta_retorica (2 frases questionando as escolhas de vida do jogador)"
+            ])
+            
+        elif boredom_score >= 5 and not combat_detected:
+            scene_type = "repetitive_grinding"
+            tone = "impatient_boredom"
+            focus_target = {
+                "behavior": "repetindo a mesma ação sem parar",
+                "absurdity": "trabalho braçal infinito e sem criatividade"
+            }
+            response_density = random.choice([
+                "monologo_sarcastico (2 a 3 frases ironizando a vida de peão de obra)",
+                "falso_elogio (2 frases parabenizando com extrema ironia)"
+            ])
+            
+        else:
+            scene_type = "routine"
+            tone = "sarcastic_observation"
+            focus_target = {
+                "behavior": "andando sem rumo ou fazendo coisas aleatórias",
+                "absurdity": "completamente perdido no jogo"
+            }
+            response_density = random.choice([
+                "julgamento_direto (2 a 3 frases julgando a falta de estratégia)",
+                "pergunta_indignada (2 frases questionando o que ele tá tentando fazer)"
+            ])
+
+        # Formata o foco real
+        action_focus_str = "\n".join(f"- {a}" for a in high_stakes) if high_stakes else "\n".join(f"- {a}" for a in telemetry.recent_actions)
+
+        # 2. Visual Debug Log
         print("\n" + "▼" * 60)
-        print(" 📥 [NEW TELEMETRY EVENT FROM JAVA]")
-        print(f" ➔ Critical States: {critical_states_str if critical_states_str else 'None'}")
-        print(f" ➔ Hotbar: [{hotbar_str}]")
-        print(f" ➔ Trigger Actions:\n    {formatted_actions}")
+        print(" 🎬 [REGENTE - INTENT TAGS]")
+        print(f" ➔ Scene Type: {scene_type}")
+        print(f" ➔ Tone: {tone}")
+        print(f" ➔ Density: {response_density}")
         print("▼" * 60)
 
-      # 3. Pega o histórico imediato da memória
+        # 3. Prepara os Dados para a LLM
         current_memory = edson_memory.get_context_string()
+        critical_states_str = "\n".join(f"- {s}" for s in telemetry.critical_states)
+        hotbar_str = ", ".join(telemetry.hotbar) if telemetry.hotbar else "Vazio"
 
-        # 4. Compila as instruções e os dados SEPARADAMENTE
+        # 4. Compila o Prompt passando TODOS os novos argumentos
         system_rules = get_system_instructions()
+        
         user_data = format_user_telemetry(
             memory_context=current_memory,
             critical_states=critical_states_str,
             hotbar=hotbar_str,
-            recent_actions=recent_actions_str
+            recent_actions=action_focus_str,
+            scene_type=scene_type,
+            tone=tone,
+            focus_target=focus_target,
+            response_density=response_density
         )
 
-        # 5. Inference (LLM) - Passamos as duas partes agora
+        # 5. Inferência (LLM)
         ai_text = fetch_ai_response(system_rules, user_data)
 
-        # 7. Synthesis (TTS)
+        # 6. Salva na Memória
+        edson_memory.add_interaction(
+            player_action_summary=str(telemetry.recent_actions), 
+            edson_response=ai_text
+        )
+
+        # 7. TTS
         print(" 🔊 [TTS] Synthesizing speech stream...")
         audio_buffer = generate_speech_stream(ai_text)
         print(" ✔️ [TTS] Audio generated and streamed to Java!\n")
 
-        # 8. Stream directly to Java AudioPlayer
         return StreamingResponse(audio_buffer, media_type="audio/wav")
 
     except Exception as e:
         print("\n" + "!" * 60)
         print(f" ❌ [RUNTIME ERROR] Pipeline failure: {str(e)}")
-        traceback.print_exc() # Added precise stack trace for your debugging
+        traceback.print_exc()
         print("!" * 60 + "\n")
         raise HTTPException(status_code=500, detail=str(e))
 

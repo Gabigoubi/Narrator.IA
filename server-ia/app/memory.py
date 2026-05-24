@@ -31,16 +31,14 @@ class SlidingMemory:
 
     def get_context_string(self) -> str:
         """
-        Formata o histórico em texto puro para ser injetado no prompt.py.
+        Retorna apenas as últimas falas do Edson para evitar repetição de assunto.
         """
         if not self.history:
-            return "Nenhum contexto anterior. O jogador acabou de começar."
+            return "Nenhuma fala anterior."
 
-        context_str = "Abaixo está o histórico imediato (o que acabou de acontecer e o que você falou):\n\n"
-        for i, entry in enumerate(self.history, 1):
-            context_str += f"[Passado - Turno {i}]\n"
-            context_str += f"O jogador tinha feito: {entry['jogador_fez']}\n"
-            context_str += f"Sua reação foi: {entry['edson_falou']}\n\n"
+        context_str = ""
+        for entry in self.history:
+            context_str += f"- Você já disse: '{entry['edson_falou']}'\n"
             
         return context_str.strip()
 
@@ -69,4 +67,3 @@ class SlidingMemory:
                 print(f"[ERRO DE MEMÓRIA] Arquivo corrompido, iniciando memória limpa: {e}")
                 return []
         return []
-

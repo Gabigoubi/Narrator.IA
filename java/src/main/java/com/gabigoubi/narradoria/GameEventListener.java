@@ -32,7 +32,7 @@ public class GameEventListener {
 
     private static final String VOICE_MODEL = "pm_alex";
     private static final int MAX_BUFFER_SIZE = 30;
-    private static final long FLUSH_INTERVAL_MS = 45000L;
+    private static final long FLUSH_INTERVAL_MS = 90000L;
     private static final long SESSION_INTERVAL_MS = 600000L;
 
     private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f;
