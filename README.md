@@ -1,64 +1,84 @@
+
+---
+
 # 🎙️ Mod Narrador IA para Minecraft (Fabric 1.21.1) - Versão 1.3
 
-Bem-vindo ao projeto! Este mod traz uma inteligência artificial que assiste à sua gameplay e te esculacha em tempo real!
+Bem-vindo ao projeto! O Narrador IA evoluiu. O que começou como uma zoeira para me humilhar enquanto jogo, tornou-se um **sistema de direção narrativa procedural** que assiste sua gameplay, interpreta o drama e te esculacha em tempo real.
 
-Conheça o **Edson Calotas**, um parceiro virtual folgado, sarcástico e debochado da Zona Leste de São Paulo que vai julgar tudo o que você faz no Minecraft, desde quebrar terra com a mão até apanhar de zumbi lerdão. Tudo isso rodando **100% localmente** no seu PC, de forma gratuita, segura e sem depender de internet.
+Conheça o **Edson Calotas**, nosso parceiro virtual da Zona Leste. Ele não é mais um bot que lê logs do sistema; ele é um ator que recebe direção de cena e interpreta sua mediocridade no jogo com sarcasmo e deboche.
 
-*(Aviso: As documentações técnicas e arquiteturais do código para desenvolvedores estão localizadas no final desta página).*
+**Página Oficial e Download do Mod:** [Narrador IA no CurseForge](https://www.curseforge.com/minecraft/mc-mods/narrator-ia)
 
-**Página Oficial e Download do Mod:** [Narrador IA no CurseForge](https://www.curseforge.com/minecraft/mc-mods/narrador-ia)
+---
+
+## 🚀 O que mudou na v1.3 (Arquitetura Cognitiva)
+
+Diferente da v1.0, onde a IA era um simples chatbot, a v1.3 introduziu o **Regente (Drama Engine)**.
+
+* **Behavior Orchestration:** Paramos de fazer *Prompt Engineering* complexo e passamos a usar "Direção de Atuação".
+* **Regente Determinístico:** Um pipeline em Python que analisa a telemetria (combate, tédio, rotina) e injeta "Intent Tags" (tipo de cena, tom, e densidade de fala).
+* **Cloud & Local Support:** Agora suporta inferência via **Groq Cloud (Llama 3.3 70B)** para uma experiência de nível AAA, ou execução 100% local via Ollama.
+* **Memória de Punchlines:** O sistema não lembra mais do que você fez no passado, ele lembra do que o Edson *já disse*, evitando o vício de repetição (anti-eco).
 
 ---
 
 ## 💻 Requisitos do Sistema
 
-Como o "cérebro" da IA roda diretamente no seu computador, o mod exige hardware potente para processar a voz e o texto simultaneamente com o Minecraft sem prejudicar a sua gameplay.
+O sistema agora possui um **Dev Mode** que permite rodar a inteligência via Cloud (Groq), reduzindo drasticamente o consumo de RAM local.
 
-**Mínimos (Possui Trava de Segurança Automática)**
-* **SO:** Windows 10 ou 11
-* **Processador:** Intel Core i5 (8ª Ger.) / AMD Ryzen 5 (4 Núcleos / 8 Threads)
-* **Memória RAM:** 12 GB (O mod **NÃO ABRIRÁ** se você tiver menos de 12GB para evitar o travamento do seu Windows).
-* **Placa de Vídeo:** Dedicada com **6GB de VRAM** (ex: GTX 1660 Ti, RTX 2060, RX 5600 XT).
+**Modo Local (Ollama - Padrão)**
 
-**Recomendados (Para a experiência ideal e fluida)**
-* **Memória RAM:** 16 GB+
-* **Placa de Vídeo:** Dedicada com **8GB+ de VRAM** (ex: RTX 3060, RX 6600 ou superior).
+* **Memória RAM:** Mínimo de 12GB (Lock de segurança imposto para evitar BSoD).
+* **GPU:** Dedicada com 6GB+ VRAM.
+
+**Modo Cloud (Dev Mode - Groq API)**
+
+* **Memória RAM:** 4GB+ (O processamento pesado ocorre na nuvem).
+* **Necessário:** API Key do Groq configurada no arquivo `.env`.
 
 ---
 
 ## ⚙️ Como Instalar e Jogar
 
-O projeto foi pensado para ser "Plug and Play". O mod em si é baixado pelo CurseForge, você só precisa ligar o motor da IA na sua máquina antes de jogar.
-
-1. **Baixe o Mod:** Instale o `.jar` diretamente pela nossa página oficial no CurseForge.
+1. **Baixe o Mod:** Instale o `.jar` diretamente pela [nossa página oficial no CurseForge](https://www.curseforge.com/minecraft/mc-mods/narrator-ia).
 2. **Baixe o Servidor IA:** Baixe o código deste repositório (clique no botão verde `Code > Download ZIP`) e extraia a pasta no seu PC.
 3. **Primeira Instalação:** Dê dois cliques no arquivo `1_PRIMEIRA_VEZ.bat` e siga as instruções na tela. *(Regra de Ouro: Lembre-se de marcar a caixa "Add Python 3.11 to PATH" durante a instalação do Python!)*
-4. **Ligar e Jogar:** Sempre que for jogar, abra a pasta baixada e execute o arquivo **`2_INICIAR_IA.bat`**. 
-   * *Nota Importante:* Na primeira vez que você abrir este arquivo, ele fará o download do motor da IA automaticamente (Aprox. 4.1 GB). Aguarde a mensagem verde de sucesso.
-   * Deixe a tela preta minimizada rodando em segundo plano, abra o Minecraft e divirta-se!
+4. **Ligar e Jogar:** Sempre que for jogar, abra a pasta baixada e execute o arquivo **`2_INICIAR_IA.bat`**.
+* Deixe a tela preta minimizada rodando em segundo plano, abra o Minecraft e divirta-se!
+
+
 
 ---
 
-## 🛡️ Diretrizes Éticas, de Humor e Segurança
+## 🛡️ Diretrizes Éticas e Segurança
 
-* **Foco na Gameplay:** O objetivo do mod é puramente o entretenimento através do humor ácido. O Edson Calotas vai zombar estritamente das suas **decisões lógicas dentro do jogo** (ex: quebrar blocos com a mão tendo a ferramenta certa na hotbar, passar fome tendo comida, ignorar perigos óbvios). É uma zoeira focada nas mecânicas do Minecraft.
-* **Política de Respeito Absoluto:** A IA possui travas comportamentais severas em seu prompt de sistema e está terminantemente proibida de proferir qualquer tipo de ofensa pessoal ou preconceituosa contra a identidade do jogador, raça, credo, gênero, orientação sexual ou aparência.
-* **Vacina contra Injeção de Prompt (Anti-Prompt Injection):** O sistema foi blindado contra hacks de contexto. Qualquer tentativa do jogador de enviar comandos via chat do Minecraft para "controlar" a IA ou burlar suas regras morais será completamente ignorada, resultando apenas em deboche por parte do narrador contra a própria tentativa de invasão.
+* **Foco na Gameplay:** O Edson Calotas vai zombar estritamente das suas **decisões lógicas dentro do jogo** (ex: quebrar blocos com a mão tendo a ferramenta certa na hotbar, passar fome tendo comida, ignorar perigos óbvios).
+* **Segurança:** A IA possui travas comportamentais severas e está terminantemente proibida de proferir qualquer tipo de ofensa pessoal ou preconceituosa.
+* **Vacina contra Injeção de Prompt:** O sistema foi blindado contra hacks de contexto. Qualquer tentativa de enviar comandos via chat do Minecraft para "controlar" a IA será ignorada.
 
 ---
 
 ## 💡 Créditos e Inspiração
 
-A ideia central e a base da arquitetura deste mod foram fortemente inspiradas no incrível trabalho da "equipe do Felps" e do projeto open-source: **minecraft-narrator** desenvolvido por *parmenashp*: https://github.com/parmenashp/minecraft-narrator/tree/main 
+A ideia central e a base da arquitetura original deste mod foram inspiradas no incrível trabalho de *parmenashp*:
+[Repositório: minecraft-narrator](https://github.com/parmenashp/minecraft-narrator/tree/main).
 Fica aqui o nosso muito obrigado e todos os créditos ao criador original por abrir as portas para essa loucura!
 
 ---
 
 ## 📂 Informações Técnicas (Para Desenvolvedores)
 
-Se você é dev e quer entender como a arquitetura da v1.3 funciona por baixo dos panos, o sistema foi desenhado visando performance extrema, segurança de hardware e telemetria baseada em eventos (Event-Driven).
+A v1.3 foi desenhada para resolver o problema de latência cognitiva e alucinação de modelos LLM. O pipeline é dividido em três camadas:
 
-* **Proteção de Hardware (Hard Lock):** O backend em Python utiliza a biblioteca `psutil` antes do boot para inferir a memória RAM física. Em caso de hardware insuficiente (<12GB), o processo recebe um `sys.exit(1)` bloqueando o motor para evitar falhas de paginação (memory swapping) no SO do usuário.
-* **Backend em Python (FastAPI):** Atua como o cérebro orquestrador. Gerencia automaticamente a presença do Ollama no ambiente local e executa chamadas para o modelo parametrizado (`mistral:latest`). A síntese de voz ocorre via TTS (Kokoro) gerando os áudios dinamicamente.
-* **Mod Java (Fabric 1.21.1):** O motor de captura descarta a varredura baseada em *ticks* contínuos (que causaria gargalo de TPS) em favor de gatilhos condicionais. O Java empacota um JSON estruturado contendo: `critical_states` (Vida <= 4, Altitude Extrema), `hotbar` (Captura instantânea do inventário rápido) e `recent_actions`. 
-* **Otimização de Contexto:** A IA não sofre de alucinação ou *Lost in the Middle*, pois a Engenharia de Prompt traduz o JSON em uma ficha técnica situacional de leitura rápida, processando o estado do jogador em uma única inferência HTTP. O áudio retornado é decodificado e reproduzido no Minecraft utilizando semáforos de concorrência e downsampling para 16-bit PCM.
+1. **Java Sensor (O Observador Cego):** Captura telemetria bruta e empacota eventos em buffers de 90s.
+2. **Regente (O Drama Engine):** Um motor determinístico em Python que recebe o JSON do Java e gera metadados de direção:
+* `scene_type` (ex: `combat_panic` vs `routine`)
+* `response_density` (ex: `explosao_indignada` vs `julgamento_direto`)
+* `absurdity_index` (interpretação da falha do jogador)
+
+
+3. **Ator (LLM Roleplay):** O prompt de sistema é blindado contra *prompt injection*. Ele recebe um roteiro formatado: `[ESTILO OBRIGATÓRIO] + [CENÁRIO] + [ALVO DO DEBOCHE]`.
+
+* **Anti-Pattern:** O sistema utiliza `ConcurrentHashMap` no Java para evitar thread-blocking e `FastAPI` no Python para streaming de áudio assíncrono.
+
+---
