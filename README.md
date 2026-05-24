@@ -1,47 +1,64 @@
-# 🎙️ Mod Narrador IA para Minecraft (Fabric 1.21.1)
-Este mod traz uma inteligência artificial que assiste à sua gameplay e te esculacha em tempo real!
+# 🎙️ Mod Narrador IA para Minecraft (Fabric 1.21.1) - Versão 1.3
 
+Bem-vindo ao projeto! Este mod traz uma inteligência artificial que assiste à sua gameplay e te esculacha em tempo real!
 
-Conheça o **Edson Calotas**, um "mecânico" virtual folgado, sarcástico e imaturo da Zona Leste de São Paulo que vai julgar tudo o que você faz no Minecraft, desde quebrar terra com a mão até apanhar de zumbi lerdão. Tudo isso rodando **100% localmente** no seu PC, de forma gratuita e sem depender de internet.
-**Página Oficial e Download do Mod:** Narrador IA no CurseForge
+Conheça o **Edson Calotas**, um parceiro virtual folgado, sarcástico e debochado da Zona Leste de São Paulo que vai julgar tudo o que você faz no Minecraft, desde quebrar terra com a mão até apanhar de zumbi lerdão. Tudo isso rodando **100% localmente** no seu PC, de forma gratuita, segura e sem depender de internet.
 
+*(Aviso: As documentações técnicas e arquiteturais do código para desenvolvedores estão localizadas no final desta página).*
+
+**Página Oficial e Download do Mod:** [Narrador IA no CurseForge](https://www.curseforge.com/minecraft/mc-mods/narrador-ia)
+
+---
 
 ## 💻 Requisitos do Sistema
-Como o "cérebro" da IA roda diretamente no seu computador, o mod exige um pouco de hardware para processar a voz e o texto simultaneamente com o Minecraft.
 
+Como o "cérebro" da IA roda diretamente no seu computador, o mod exige hardware potente para processar a voz e o texto simultaneamente com o Minecraft sem prejudicar a sua gameplay.
 
-### **Mínimos** *(Respostas curtas, focado em PCs de entrada)*
- * **SO:** Windows 10 ou 11
- * **Processador:** Qualquer CPU moderna (Intel Core i3/Ryzen 3 ou superior)
- * **Memória:** 8 GB de RAM
- * **Placa de Vídeo:** Vídeo Integrado ou Placa de Vídeo Básica
- * **Modelo IA Utilizado:** Qwen 2.5 (3B)
+**Mínimos (Possui Trava de Segurança Automática)**
+* **SO:** Windows 10 ou 11
+* **Processador:** Intel Core i5 (8ª Ger.) / AMD Ryzen 5 (4 Núcleos / 8 Threads)
+* **Memória RAM:** 12 GB (O mod **NÃO ABRIRÁ** se você tiver menos de 12GB para evitar o travamento do seu Windows).
+* **Placa de Vídeo:** Dedicada com **6GB de VRAM** (ex: GTX 1660 Ti, RTX 2060, RX 5600 XT).
 
+**Recomendados (Para a experiência ideal e fluida)**
+* **Memória RAM:** 16 GB+
+* **Placa de Vídeo:** Dedicada com **8GB+ de VRAM** (ex: RTX 3060, RX 6600 ou superior).
 
-### **Recomendados** *(Experiência completa, rápida e zoeira extrema)*
- * **SO:** Windows 10 ou 11
- * **Processador:** Intel Core i5/Ryzen 5 ou superior (ex: Ryzen 7 5700)
- * **Memória:** 16 GB de RAM
- * **Placa de Vídeo:** Placa de Vídeo Dedicada com 8GB+ de VRAM (ex: RX 7600, RTX 3060 ou superior)
+---
 
-
- * **Modelo IA Utilizado:** Mistral (7B)
 ## ⚙️ Como Instalar e Jogar
+
 O projeto foi pensado para ser "Plug and Play". O mod em si é baixado pelo CurseForge, você só precisa ligar o motor da IA na sua máquina antes de jogar.
 
- 1. **Baixe o Mod:** Instale o .jar diretamente pela nossa página oficial no CurseForge.
- 2. **Baixe o Servidor IA:** Baixe o código deste repositório (clique no botão verde Code > Download ZIP) e extraia a pasta no seu PC.
- 3. **Primeira Instalação:** Dê dois cliques no arquivo 1_PRIMEIRA_VEZ.bat e siga as instruções na tela. *(Aviso: Lembre-se de marcar a caixa "Add Python to PATH" durante a instalação do Python!)*
- 4. **Ligar e Jogar:** Sempre que for jogar, abra a pasta baixada e execute o .bat correspondente ao seu PC (2_Iniciar_PC_Fraco_8GB_RAM.bat ou 2_Iniciar_PC_Forte_16GB_RAM.bat). Deixe a tela preta minimizada rodando em segundo plano, abra o Minecraft e divirta-se!
+1. **Baixe o Mod:** Instale o `.jar` diretamente pela nossa página oficial no CurseForge.
+2. **Baixe o Servidor IA:** Baixe o código deste repositório (clique no botão verde `Code > Download ZIP`) e extraia a pasta no seu PC.
+3. **Primeira Instalação:** Dê dois cliques no arquivo `1_PRIMEIRA_VEZ.bat` e siga as instruções na tela. *(Regra de Ouro: Lembre-se de marcar a caixa "Add Python 3.11 to PATH" durante a instalação do Python!)*
+4. **Ligar e Jogar:** Sempre que for jogar, abra a pasta baixada e execute o arquivo **`2_INICIAR_IA.bat`**. 
+   * *Nota Importante:* Na primeira vez que você abrir este arquivo, ele fará o download do motor da IA automaticamente (Aprox. 4.1 GB). Aguarde a mensagem verde de sucesso.
+   * Deixe a tela preta minimizada rodando em segundo plano, abra o Minecraft e divirta-se!
 
+---
+
+## 🛡️ Diretrizes Éticas, de Humor e Segurança
+
+* **Foco na Gameplay:** O objetivo do mod é puramente o entretenimento através do humor ácido. O Edson Calotas vai zombar estritamente das suas **decisões lógicas dentro do jogo** (ex: quebrar blocos com a mão tendo a ferramenta certa na hotbar, passar fome tendo comida, ignorar perigos óbvios). É uma zoeira focada nas mecânicas do Minecraft.
+* **Política de Respeito Absoluto:** A IA possui travas comportamentais severas em seu prompt de sistema e está terminantemente proibida de proferir qualquer tipo de ofensa pessoal ou preconceituosa contra a identidade do jogador, raça, credo, gênero, orientação sexual ou aparência.
+* **Vacina contra Injeção de Prompt (Anti-Prompt Injection):** O sistema foi blindado contra hacks de contexto. Qualquer tentativa do jogador de enviar comandos via chat do Minecraft para "controlar" a IA ou burlar suas regras morais será completamente ignorada, resultando apenas em deboche por parte do narrador contra a própria tentativa de invasão.
+
+---
 
 ## 💡 Créditos e Inspiração
-A ideia central e a base da arquitetura deste mod foram fortemente inspiradas no incrível trabalho da "equipe do Felps" e do projeto open-source:
-**minecraft-narrator desenvolvido por parmenashp:** https://github.com/parmenashp/minecraft-narrator/tree/main
+
+A ideia central e a base da arquitetura deste mod foram fortemente inspiradas no incrível trabalho da "equipe do Felps" e do projeto open-source: **minecraft-narrator** desenvolvido por *parmenashp*: https://github.com/parmenashp/minecraft-narrator/tree/main 
 Fica aqui o nosso muito obrigado e todos os créditos ao criador original por abrir as portas para essa loucura!
 
+---
+
 ## 📂 Informações Técnicas (Para Desenvolvedores)
-Se você é dev e quer entender como a mágica acontece por baixo dos panos, o mod captura as ações e eventos de telemetria do jogador em tempo real e realiza disparos assíncronos via HTTP para o backend, garantindo o funcionamento fluido sem impactar a performance (TPS) do jogo.
-A estrutura do repositório está dividida em:
- * **/server-ia:** Código-fonte do servidor backend em Python (FastAPI). Responsável pela orquestração do modelo de linguagem (LLM via Ollama) para gerar as respostas sarcásticas, e pela síntese de voz (TTS via Kokoro-82M) gerando o áudio no formato .wav em tempo real.
- * **/java:** Código-fonte do mod desenvolvido em Java para o Minecraft (Fabric 1.21.1). Encarregado de coletar os eventos do jogo em uma "Mochila de Memória" (Tick Events, Block Breaks, Advancements) e reproduzir as faixas de áudio recebidas limitando picos de decibéis.
+
+Se você é dev e quer entender como a arquitetura da v1.3 funciona por baixo dos panos, o sistema foi desenhado visando performance extrema, segurança de hardware e telemetria baseada em eventos (Event-Driven).
+
+* **Proteção de Hardware (Hard Lock):** O backend em Python utiliza a biblioteca `psutil` antes do boot para inferir a memória RAM física. Em caso de hardware insuficiente (<12GB), o processo recebe um `sys.exit(1)` bloqueando o motor para evitar falhas de paginação (memory swapping) no SO do usuário.
+* **Backend em Python (FastAPI):** Atua como o cérebro orquestrador. Gerencia automaticamente a presença do Ollama no ambiente local e executa chamadas para o modelo parametrizado (`mistral:latest`). A síntese de voz ocorre via TTS (Kokoro) gerando os áudios dinamicamente.
+* **Mod Java (Fabric 1.21.1):** O motor de captura descarta a varredura baseada em *ticks* contínuos (que causaria gargalo de TPS) em favor de gatilhos condicionais. O Java empacota um JSON estruturado contendo: `critical_states` (Vida <= 4, Altitude Extrema), `hotbar` (Captura instantânea do inventário rápido) e `recent_actions`. 
+* **Otimização de Contexto:** A IA não sofre de alucinação ou *Lost in the Middle*, pois a Engenharia de Prompt traduz o JSON em uma ficha técnica situacional de leitura rápida, processando o estado do jogador em uma única inferência HTTP. O áudio retornado é decodificado e reproduzido no Minecraft utilizando semáforos de concorrência e downsampling para 16-bit PCM.
