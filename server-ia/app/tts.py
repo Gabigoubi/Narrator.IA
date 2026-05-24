@@ -3,37 +3,56 @@ import scipy.io.wavfile as wavfile
 import numpy as np
 from kokoro import KPipeline
 
-pipeline = KPipeline(lang_code='p')
+# --- CONSTANTS ---
+SAMPLE_RATE = 24000
+EDSON_VOICE_MODEL = "pm_alex" # The one and only definitive voice
+SPEECH_SPEED = 0.80
 
-VOICE_MAPPING = {
-    "mulher.agressiva": "af_bella",   
-    "mulher.amigavel": "af_heart",    
-    "homem.agressivo": "am_adam",     
-    "homem.amigavel": "pm_alex"       
-}
+print("[BOOT] ⏳ Loading Kokoro TTS Engine into memory...")
+try:
+    pipeline = KPipeline(lang_code='p')
+    print("[BOOT] ✔️ TTS Engine ready.")
+except Exception as e:
+    print(f"\n[BOOT FATAL] ❌ Failed to load Kokoro Pipeline: {str(e)}")
+    import sys
+    sys.exit(1)
 
-def generate_speech_stream(text: str, persona_id: str) -> io.BytesIO:
-    voice_model = VOICE_MAPPING.get(persona_id, "pm_alex")
-
-    generator = pipeline(
-        text, 
-        voice=voice_model, 
-        speed=0.85,  
-        split_pattern=r'\n'
-    )
-
+def generate_speech_stream(text: str) -> io.BytesIO:
+    """
+    Synthesizes text into a 16-bit PCM WAV using the definitive Edson voice.
+    """
     audio_chunks = []
-    
-    for _, _, audio in generator:
-        audio_chunks.append(audio.numpy())
 
-    if not audio_chunks:
-        return io.BytesIO()
+    try:
+        generator = pipeline(
+            text, 
+            voice=EDSON_VOICE_MODEL, # Strictly locked
+            speed=SPEECH_SPEED,  
+            split_pattern=r'\n'
+        )
 
-    final_audio = np.concatenate(audio_chunks)
-    
+        for _, _, audio_tensor in generator:
+            if audio_tensor is not None:
+                audio_chunks.append(audio_tensor.numpy())
+
+        if not audio_chunks:
+            raise ValueError("TTS engine produced empty audio chunks.")
+
+        final_audio = np.concatenate(audio_chunks)
+        
+        buffer = io.BytesIO()
+        wavfile.write(buffer, SAMPLE_RATE, final_audio)
+        buffer.seek(0)
+        
+        return buffer
+
+    except Exception as e:
+        print(f"\n[TTS ERROR] ❌ Failed to synthesize speech: {str(e)}")
+        return _create_silent_wav()
+
+def _create_silent_wav() -> io.BytesIO:
     buffer = io.BytesIO()
-    wavfile.write(buffer, 24000, final_audio)
+    silent_audio = np.zeros(SAMPLE_RATE, dtype=np.float32)
+    wavfile.write(buffer, SAMPLE_RATE, silent_audio)
     buffer.seek(0)
-    
     return buffer

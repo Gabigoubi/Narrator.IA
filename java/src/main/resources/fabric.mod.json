@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "narrador_ia",
-  "version": "${version}",
+  "version": "v1.3",
   "name": "Narrador IA",
   "description": "Mod de narracao com IA e Kokoro",
   "authors": [
@@ -14,6 +14,11 @@
   "entrypoints": {
     "main": [
       "com.gabigoubi.narradoria.NarradorIAMod"
+    ]
+  },
+  "custom": {
+    "mixins": [
+      "narradoria.mixins.json"
     ]
   },
   "depends": {

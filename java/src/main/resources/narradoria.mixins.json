@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "com.gabigoubi.narradoria.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MixinCraftingResultSlot",
+    "MixinPlayerEntity",
+    "MixinItemEntity"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

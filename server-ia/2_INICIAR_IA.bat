@@ -47,7 +47,7 @@ echo ====================================================================
 echo.
 
 :: 4. Execucao do Servidor FastAPI
-uvicorn app.main:app --host 127.0.0.1 --port 8000
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 :: 5. Tratamento de Crash (Se o uvicorn fechar/quebrar, o script chega aqui)
 color 0C

@@ -1,186 +1,265 @@
 import os
+import sys
+import psutil
 import requests
 import traceback
-import sys
-import psutil 
+import random
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from app.prompt import get_system_prompt
+from app.prompt import get_system_instructions, format_user_telemetry
 from app.tts import generate_speech_stream
+from app.memory import SlidingMemory
 
-# --- CONSTANTES ---
+# --- CONFIGURATION CONSTANTS ---
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
 OLLAMA_PULL_URL = "http://localhost:11434/api/pull"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MAX_HISTORY_ACTIONS = 15
-TIMEOUT_OLLAMA = 300
-MODELO_PADRAO = "mistral"
 
-# --- ESTADO INTERNO ---
-ACTION_HISTORY = []
+TIMEOUT_OLLAMA = 300  # 5 minutes, matching Java's HttpAssistant
+DEFAULT_MODEL = "mistral"
 
-# --- IDENTIFICAÇÃO DO MODO DESENVOLVEDOR (OCULTO) ---
+# --- DEV MODE DETECTION (ZERO-DEPENDENCY ENV PARSER) ---
 GROQ_API_KEY = None
 IS_DEV_MODE = False
 
 if os.path.exists(".env"):
-    with open(".env", "r") as f:
+    with open(".env", "r", encoding="utf-8") as f:
         for line in f:
-            if line.startswith("GROQ_API_KEY="):
-                # Extrai a chave removendo quebras de linha e aspas extras
-                GROQ_API_KEY = line.strip().split("=")[1].strip().strip('"').strip("'")
+            if line.strip() and line.startswith("GROQ_API_KEY="):
+                GROQ_API_KEY = line.strip().split("=", 1)[1].strip().strip('"').strip("'")
                 if GROQ_API_KEY:
                     IS_DEV_MODE = True
+                break
 
-# --- MODELOS DE DADOS (PYDANTIC v1.3) ---
+# --- DATA MODELS (v1.3 Payload) ---
 class PlayerTelemetry(BaseModel):
     voice_model: str
     critical_states: list[str]
-    hotbar: list[str]
+    hotbar: list[str] | None = None
     recent_actions: list[str]
 
-# --- VERIFICAÇÃO DE HARDWARE (HARD LOCK) ---
+# --- HARDWARE PROTECTION (HARD LOCK) ---
 def check_hardware_requirements():
     if IS_DEV_MODE:
-        print("\n[BOOT] 🚀 [MODO DEV] Chave da Groq detectada. Trava de hardware desativada.")
+        print("\n[BOOT] 🚀 [DEV MODE] Groq API Key detected. Hardware lock bypassed.")
         return
 
-    print("\n[BOOT] 🔍 Verificando hardware da máquina...")
+    print("\n[BOOT] 🔍 Scanning system hardware...")
     ram_gb = psutil.virtual_memory().total / (1024 ** 3)
     
     if ram_gb < 11.5:
-        print("\n" + "!"*60)
-        print(" ❌ [ERRO CRÍTICO DE HARDWARE] ❌")
-        print(f" Seu PC possui apenas {ram_gb:.1f}GB de memória RAM total.")
-        print(" O Narrador IA requer no MÍNIMO 12GB de RAM para rodar simultaneamente")
-        print(" com o Minecraft sem causar o travamento do seu Windows.")
-        print(" Inicialização bloqueada para proteger o seu sistema.")
-        print("!"*60 + "\n")
+        print("\n" + "!" * 60)
+        print(" ❌ [CRITICAL HARDWARE ERROR] ❌")
+        print(f" System Memory: {ram_gb:.1f}GB RAM detected.")
+        print(" Narrador IA requires a STRICT MINIMUM of 12GB RAM to run locally")
+        print(" alongside Minecraft without causing OS-level memory swapping (BSoD risk).")
+        print(" Boot process halted to protect your machine.")
+        print("!" * 60 + "\n")
         sys.exit(1)
-    else:
-        print(f"[BOOT] ✔️ Hardware aprovado: {ram_gb:.1f}GB de RAM detectados.")
+    
+    print(f"[BOOT] ✔️ Hardware approved: {ram_gb:.1f}GB RAM available.")
 
-# --- GERENCIAMENTO DE MODELO (OLLAMA) ---
+# --- OLLAMA MODEL MANAGEMENT ---
 def ensure_model_exists():
     if IS_DEV_MODE:
-        print("[BOOT] 🚀 [MODO DEV] Utilizando infraestrutura de nuvem. Download local ignorado.")
+        print("[BOOT] 🚀 [DEV MODE] Cloud infrastructure active. Local model check bypassed.")
         return
 
     try:
-        print(f"[BOOT] ⏳ Verificando se o modelo '{MODELO_PADRAO}' está instalado...")
+        print(f"[BOOT] ⏳ Verifying local installation of '{DEFAULT_MODEL}'...")
         response = requests.get(OLLAMA_TAGS_URL, timeout=5)
         response.raise_for_status()
-        models = [m["name"] for m in response.json().get("models", [])]
         
-        if MODELO_PADRAO in models or f"{MODELO_PADRAO}:latest" in models:
-            print(f"[BOOT] ✔️ Modelo '{MODELO_PADRAO}' já está pronto para uso.")
+        models = [m["name"] for m in response.json().get("models", [])]
+        if DEFAULT_MODEL in models or f"{DEFAULT_MODEL}:latest" in models:
+            print(f"[BOOT] ✔️ Model '{DEFAULT_MODEL}' is ready.")
             return
 
-        print(f"\n[BOOT] ⚠️ Modelo '{MODELO_PADRAO}' não encontrado. Iniciando download automático...")
-        print("[BOOT] Isso pode demorar dependendo da sua internet (Arquivo de aprox. 4.1GB).")
+        print(f"\n[BOOT] ⚠️ Model '{DEFAULT_MODEL}' not found. Initializing auto-download...")
+        print("[BOOT] Please wait. This may take a while depending on your bandwidth (Approx. 4.1GB).")
         
-        pull_response = requests.post(OLLAMA_PULL_URL, json={"name": MODELO_PADRAO, "stream": False}, timeout=3600)
+        pull_response = requests.post(OLLAMA_PULL_URL, json={"name": DEFAULT_MODEL, "stream": False}, timeout=3600)
         pull_response.raise_for_status()
         
-        print(f"[BOOT] ✔️ Download concluído! Modelo '{MODELO_PADRAO}' installed com sucesso.")
+        print(f"[BOOT] ✔️ Download complete! '{DEFAULT_MODEL}' installed successfully.")
         
     except requests.exceptions.RequestException as e:
-        print(f"\n[AVISO BOOT] ❌ Falha ao comunicar com o Ollama para baixar o modelo. Erro: {str(e)}")
-        print("Certifique-se de que o aplicativo do Ollama está aberto no Windows.")
+        print(f"\n[BOOT FATAL] ❌ Failed to communicate with Ollama: {str(e)}")
+        print("Action Required: Ensure the Ollama background app is running in Windows.")
         sys.exit(1)
 
-# --- INICIALIZAÇÃO ---
+# --- SERVER INITIALIZATION ---
 check_hardware_requirements()
 ensure_model_exists()
 
-print("="*60)
-print(f"🚀 [SISTEMA] Servidor iniciado com sucesso!")
-print(f"🧠 [MODELO ATIVO]: {'llama-3.3-70b (Groq Cloud)' if IS_DEV_MODE else MODELO_PADRAO}")
-print("="*60 + "\n")
+print("=" * 60)
+print("🚀 [SYSTEM] API Server successfully started!")
+print(f"🧠 [ACTIVE ENGINE]: {'llama-3.3-70b (Groq Cloud)' if IS_DEV_MODE else DEFAULT_MODEL}")
+print("=" * 60 + "\n")
 
 app = FastAPI()
 
-# --- ROTAS ---
+# 2. Inicializa a memória do Edson (janela de 3 interações)
+edson_memory = SlidingMemory(max_history=3)
+
+# --- ROUTES ---
 @app.post("/narrate")
 def generate_narration(telemetry: PlayerTelemetry):
-    global ACTION_HISTORY
     try:
-        critical_states_str = "\n".join(f"- {s}" for s in telemetry.critical_states) if telemetry.critical_states else "Nenhum estado crítico."
-        hotbar_str = f"[{', '.join(telemetry.hotbar)}]" if telemetry.hotbar else "[Inventário Vazio]"
-        past_actions_str = "\n".join(f"- {a}" for a in ACTION_HISTORY) if ACTION_HISTORY else "Nenhum evento passado."
-        current_actions_str = "\n".join(f"- {a}" for a in telemetry.recent_actions) if telemetry.recent_actions else "Nenhuma ação recente."
+        # --- 1. O REGENTE (Motor Determinístico) ---
+        danger_score = 0
+        boredom_score = 0
+        combat_detected = False
+        high_stakes = []
+        
+        for action in telemetry.recent_actions:
+            if any(keyword in action for keyword in ["Took Damage", "Morreu", "Attacked"]):
+                danger_score += 3
+                combat_detected = True
+                high_stakes.append(action)
+            elif any(keyword in action for keyword in ["Broke", "Placed", "Used"]):
+                boredom_score += 1
+                
+        for state in telemetry.critical_states:
+            if "Risco de Morte" in state or "Fome Extrema" in state:
+                danger_score += 5
+                
+# Definindo as Intent Tags detalhadas (Sem calar o Edson!)
+        if danger_score >= 5:
+            scene_type = "combat_panic"
+            tone = "aggressive_mockery"
+            focus_target = {
+                "behavior": "apanhando pra mob ou caindo",
+                "absurdity": "falha brutal de sobrevivência"
+            }
+            response_density = random.choice([
+                "explosao_indignada (2 a 3 frases gritando sobre a incompetência em combate)",
+                "pergunta_retorica (2 frases questionando as escolhas de vida do jogador)"
+            ])
+            
+        elif boredom_score >= 5 and not combat_detected:
+            scene_type = "repetitive_grinding"
+            tone = "impatient_boredom"
+            focus_target = {
+                "behavior": "repetindo a mesma ação sem parar",
+                "absurdity": "trabalho braçal infinito e sem criatividade"
+            }
+            response_density = random.choice([
+                "monologo_sarcastico (2 a 3 frases ironizando a vida de peão de obra)",
+                "falso_elogio (2 frases parabenizando com extrema ironia)"
+            ])
+            
+        else:
+            scene_type = "routine"
+            tone = "sarcastic_observation"
+            focus_target = {
+                "behavior": "andando sem rumo ou fazendo coisas aleatórias",
+                "absurdity": "completamente perdido no jogo"
+            }
+            response_density = random.choice([
+                "julgamento_direto (2 a 3 frases julgando a falta de estratégia)",
+                "pergunta_indignada (2 frases questionando o que ele tá tentando fazer)"
+            ])
 
-        # LOG VISUAL PARA DEBUG
-        print("\n" + "▼"*60)
-        print(" 📥 [NOVO EVENTO RECEBIDO DO MINECRAFT]")
-        print(f" ➔ Estados Críticos:\n    {critical_states_str.replace('\n', '\n    ')}")
-        print(f" ➔ Ações Recentes (Gatilho):\n    {current_actions_str.replace('\n', '\n    ')}")
-        print("▼"*60)
+        # Formata o foco real
+        action_focus_str = "\n".join(f"- {a}" for a in high_stakes) if high_stakes else "\n".join(f"- {a}" for a in telemetry.recent_actions)
 
-        ACTION_HISTORY.extend(telemetry.recent_actions)
-        if len(ACTION_HISTORY) > MAX_HISTORY_ACTIONS:
-            ACTION_HISTORY = ACTION_HISTORY[-MAX_HISTORY_ACTIONS:]
+        # 2. Visual Debug Log
+        print("\n" + "▼" * 60)
+        print(" 🎬 [REGENTE - INTENT TAGS]")
+        print(f" ➔ Scene Type: {scene_type}")
+        print(f" ➔ Tone: {tone}")
+        print(f" ➔ Density: {response_density}")
+        print("▼" * 60)
 
-        system_prompt = get_system_prompt(
-            past_actions=past_actions_str,
-            current_actions=current_actions_str,
+        # 3. Prepara os Dados para a LLM
+        current_memory = edson_memory.get_context_string()
+        critical_states_str = "\n".join(f"- {s}" for s in telemetry.critical_states)
+        hotbar_str = ", ".join(telemetry.hotbar) if telemetry.hotbar else "Vazio"
+
+        # 4. Compila o Prompt passando TODOS os novos argumentos
+        system_rules = get_system_instructions()
+        
+        user_data = format_user_telemetry(
+            memory_context=current_memory,
             critical_states=critical_states_str,
             hotbar=hotbar_str,
-            persona_id=telemetry.voice_model
+            recent_actions=action_focus_str,
+            scene_type=scene_type,
+            tone=tone,
+            focus_target=focus_target,
+            response_density=response_density
         )
 
-        # Processamento inteligente de texto (Roteador Local/Nuvem)
-        ai_text = fetch_ai_response(system_prompt)
+        # 5. Inferência (LLM)
+        ai_text = fetch_ai_response(system_rules, user_data)
 
-        print(" 🔊 [TTS] Gerando síntese de voz...")
-        audio_buffer = generate_speech_stream(ai_text, telemetry.voice_model)
-        print(" ✔️ [TTS] Áudio gerado e enviado ao jogo!\n")
+        # 6. Salva na Memória
+        edson_memory.add_interaction(
+            player_action_summary=str(telemetry.recent_actions), 
+            edson_response=ai_text
+        )
+
+        # 7. TTS
+        print(" 🔊 [TTS] Synthesizing speech stream...")
+        audio_buffer = generate_speech_stream(ai_text)
+        print(" ✔️ [TTS] Audio generated and streamed to Java!\n")
 
         return StreamingResponse(audio_buffer, media_type="audio/wav")
 
     except Exception as e:
-        print("\n" + "!"*60)
-        print(f" ❌ [ERRO] Falha na execução da rota: {str(e)}")
-        print("!"*60 + "\n")
+        print("\n" + "!" * 60)
+        print(f" ❌ [RUNTIME ERROR] Pipeline failure: {str(e)}")
+        traceback.print_exc()
+        print("!" * 60 + "\n")
         raise HTTPException(status_code=500, detail=str(e))
 
-def fetch_ai_response(prompt: str) -> str:
+# --- LLM ROUTER ---
+# --- LLM ROUTER ---
+def fetch_ai_response(system_prompt: str, user_prompt: str) -> str:
     if IS_DEV_MODE:
-        # Formato de payload ChatCompletion exigido pela Groq
         headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json"
         }
         payload = {
             "model": "llama-3.3-70b-versatile",
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.5,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.75, 
+            "max_tokens": 120,   
             "top_p": 0.9
         }
-        print(f" 🧠 [DEV - GROQ] Enviando payload para nuvem (Llama 3.3 70B)...")
+        print(" 🧠 [DEV - GROQ] Pinging cloud engine...")
         response = requests.post(GROQ_API_URL, json=payload, headers=headers, timeout=30)
         response.raise_for_status()
         ai_text = response.json()["choices"][0]["message"]["content"].strip()
     else:
-        # Formato padrão local do Ollama
+        # Lógica para o Ollama local
         payload = {
-            "model": MODELO_PADRAO, 
-            "prompt": prompt, 
+            "model": DEFAULT_MODEL, 
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
             "stream": False,
-            "options": {"temperature": 0.5, "top_p": 0.9, "top_k": 40}
+            "options": {"temperature": 0.8, "top_p": 0.9, "top_k": 40, "num_predict": 120}
         }
-        print(f" 🧠 [IA LOCAL] Processando contexto com o modelo '{MODELO_PADRAO}'...")
+        print(f" 🧠 [LOCAL LLM] Inferring context with '{DEFAULT_MODEL}'...")
+   
         response = requests.post(OLLAMA_GENERATE_URL, json=payload, timeout=TIMEOUT_OLLAMA)
         response.raise_for_status()
         ai_text = response.json().get("response", "").strip()
         
     print("-" * 60)
-    print(f" 💬 [FALA GERADA]:\n    '{ai_text}'")
+    print(f" 💬 [EDSON'S SCRIPT]:\n    '{ai_text}'")
     print("-" * 60)
     
     if not ai_text:
-        raise ValueError("A IA retornou uma string vazia.")
+        raise ValueError("LLM returned an empty string.")
         
     return ai_text
