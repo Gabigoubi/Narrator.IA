@@ -7,7 +7,7 @@ Bem-vindo ao projeto! O Narrador IA evoluiu. O que começou como uma zoeira para
 
 Conheça o **Edson Calotas**, nosso parceiro virtual da Zona Leste. Ele não é mais um bot que lê logs do sistema; ele é um ator que recebe direção de cena e interpreta sua mediocridade no jogo com sarcasmo e deboche.
 
-**Página Oficial e Download do Mod:** ([https://www.curseforge.com/minecraft/mc-mods/narrator-ia](https://www.curseforge.com/minecraft/mc-mods/narrador-ia))
+**Página Oficial e Download do Mod:** [https://www.curseforge.com/minecraft/mc-mods/narrator-ia](https://www.curseforge.com/minecraft/mc-mods/narrador-ia)
 
 ---
 
@@ -40,7 +40,7 @@ O sistema agora possui um **Dev Mode** que permite rodar a inteligência via Clo
 
 ## ⚙️ Como Instalar e Jogar
 
-1. **Baixe o Mod:** Instale o `.jar` diretamente pela [nossa página oficial no CurseForge](https://www.curseforge.com/minecraft/mc-mods/narrator-ia).
+1. **Baixe o Mod:** Instale o `.jar` diretamente pela [nossa página oficial no CurseForge](https://www.curseforge.com/minecraft/mc-mods/narrador-ia)
 2. **Baixe o Servidor IA:** Baixe o código deste repositório (clique no botão verde `Code > Download ZIP`) e extraia a pasta no seu PC.
 3. **Primeira Instalação:** Dê dois cliques no arquivo `1_PRIMEIRA_VEZ.bat` e siga as instruções na tela. *(Regra de Ouro: Lembre-se de marcar a caixa "Add Python 3.11 to PATH" durante a instalação do Python!)*
 4. **Ligar e Jogar:** Sempre que for jogar, abra a pasta baixada e execute o arquivo **`2_INICIAR_IA.bat`**.
