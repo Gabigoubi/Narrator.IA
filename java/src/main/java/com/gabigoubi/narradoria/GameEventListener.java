@@ -224,32 +224,70 @@ public class GameEventListener {
         });
     }
 
+// Atua como um classificador semântico para a telemetria
+    private static int determinePriority(String actionType) {
+        return switch (actionType) {
+            case "Morreu", "Took Damage", "Chat", "Achievement", "Woke Up" -> 3; // Alta
+            case "Attacked", "Dimension Changed", "Crafted", "Consumed" -> 2;    // Média
+            default -> 1;                                                        // Baixa
+        };
+    }
+
+
+
+    
+
     public static void addActionAndCheckFlush(String actionType, String target, ServerPlayerEntity player, boolean isCritical) {
         UUID uuid = player.getUuid();
         playerBuffers.putIfAbsent(uuid, new ArrayList<>());
         List<ActionEntry> buffer = playerBuffers.get(uuid);
 
         long now = System.currentTimeMillis();
+        int eventPriority = determinePriority(actionType); 
 
         synchronized (buffer) {
+            boolean isDuplicate = false;
+
             if (!buffer.isEmpty()) {
                 ActionEntry lastEntry = buffer.get(buffer.size() - 1);
 
+                // Lógica de agrupamento de itens repetidos
                 if (lastEntry.getActionType().equals(actionType) && lastEntry.getTarget().equals(target)) {
                     if (now - lastEntry.getLastTimestamp() >= 250L) {
                         if (lastEntry.getCount() < 30) {
                             lastEntry.incrementCount();
                         }
                         lastEntry.updateTimestamp(now);
-                        addToSessionBuffer(uuid, actionType, target, now);
+                        addToSessionBuffer(uuid, actionType, target, eventPriority, now);
+                    }
+                    isDuplicate = true;
+                }
+            }
+
+            // Lógica de Eviction (Descarte de itens menos relevantes se o buffer encher)
+            if (!isDuplicate) {
+                if (buffer.size() >= MAX_BUFFER_SIZE) {
+                    int lowestPriorityIndex = -1;
+                    int lowestPriorityValue = Integer.MAX_VALUE;
+
+                    // Busca o evento mais irrelevante na lista
+                    for (int i = 0; i < buffer.size(); i++) {
+                        if (buffer.get(i).getPriority() < lowestPriorityValue) {
+                            lowestPriorityValue = buffer.get(i).getPriority();
+                            lowestPriorityIndex = i;
+                        }
+                    }
+
+                    // Se a nova ação for mais ou igualmente importante, ejeta a mais fraca
+                    if (eventPriority >= lowestPriorityValue && lowestPriorityIndex != -1) {
+                        buffer.remove(lowestPriorityIndex);
+                        buffer.add(new ActionEntry(actionType, target, eventPriority, now));
+                        addToSessionBuffer(uuid, actionType, target, eventPriority, now);
                     }
                 } else {
-                    buffer.add(new ActionEntry(actionType, target, now));
-                    addToSessionBuffer(uuid, actionType, target, now);
+                    buffer.add(new ActionEntry(actionType, target, eventPriority, now));
+                    addToSessionBuffer(uuid, actionType, target, eventPriority, now);
                 }
-            } else {
-                buffer.add(new ActionEntry(actionType, target, now));
-                addToSessionBuffer(uuid, actionType, target, now);
             }
 
             if (isCritical) {
@@ -258,7 +296,7 @@ public class GameEventListener {
         }
     }
 
-    private static void addToSessionBuffer(UUID uuid, String actionType, String target, long now) {
+     private static void addToSessionBuffer(UUID uuid, String actionType, String target, int priority, long now) {
         List<ActionEntry> sessionBuffer = sessionBuffers.get(uuid);
         if (sessionBuffer == null) return;
 
@@ -273,7 +311,7 @@ public class GameEventListener {
                 }
             }
             if (!found) {
-                sessionBuffer.add(new ActionEntry(actionType, target, now));
+                sessionBuffer.add(new ActionEntry(actionType, target, priority, now));
             }
         }
     }
@@ -367,7 +405,6 @@ public class GameEventListener {
 
         payload.add("critical_states", statesArray);
 
-        // Agora sempre adiciona a hotbar
         JsonArray hotbarArray = new JsonArray();
         hotbar.forEach(hotbarArray::add);
         payload.add("hotbar", hotbarArray);
@@ -381,21 +418,25 @@ public class GameEventListener {
         HttpAssistant.sendStructuredTelemetry(payload.toString());
     }
 
-    private static class ActionEntry {
+      private static class ActionEntry {
         private final String actionType;
         private final String target;
+        private final int priority; // Novo attribute imutável
         private int count;
         private long lastTimestamp;
 
-        public ActionEntry(String actionType, String target, long timestamp) {
+        public ActionEntry(String actionType, String target, int priority, long timestamp) {
             this.actionType = actionType;
             this.target = target;
+            this.priority = priority;
             this.count = 1;
             this.lastTimestamp = timestamp;
         }
 
+        // Getters para expor os atributos de forma segura
         public String getActionType() { return actionType; }
         public String getTarget() { return target; }
+        public int getPriority() { return priority; } 
         public int getCount() { return count; }
         public long getLastTimestamp() { return lastTimestamp; }
 
@@ -408,4 +449,4 @@ public class GameEventListener {
                     : String.format("[%s] %s", actionType, target);
         }
     }
-}
+
