@@ -1,6 +1,7 @@
 package com.gabigoubi.narradoria;
 
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.EntityPickupItemCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -28,24 +29,38 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
+/**
+ * GameEventListener serves as the primary telemetry sensor for the Narrador IA mod.
+ * It listens to in-game events, categorizes their semantic priority, and batches them
+ * into short-term (90s) and long-term (10m) memory buffers to prevent network spam
+ * while maintaining deep narrative context for the AI.
+ */
 public class GameEventListener {
 
+    // --- Configuration Constants ---
     private static final String VOICE_MODEL = "pm_alex";
-    private static final int MAX_BUFFER_SIZE = 30;
-    private static final long FLUSH_INTERVAL_MS = 90000L;
-    private static final long SESSION_INTERVAL_MS = 600000L;
+    private static final int MAX_BUFFER_SIZE = 30; // Maximum unique actions per short-term window
+    private static final long FLUSH_INTERVAL_MS = 90000L; // 90 seconds short-term window
+    private static final long SESSION_INTERVAL_MS = 600000L; // 10 minutes session window
 
-    private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f;
-    private static final int CRITICAL_HUNGER_THRESHOLD = 4;
+    private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f; // 2 Hearts
+    private static final int CRITICAL_HUNGER_THRESHOLD = 4; // 2 Drumsticks
 
+    // --- State Management (Thread-Safe Maps) ---
     private static final Map<UUID, List<ActionEntry>> playerBuffers = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastFlushTimes = new ConcurrentHashMap<>();
     private static final Map<UUID, List<String>> hotbarCaches = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastEatTimes = new ConcurrentHashMap<>();
-
     private static final Map<UUID, List<ActionEntry>> sessionBuffers = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastSessionFlushTimes = new ConcurrentHashMap<>();
 
+    // ========================================================================
+    // 1. EVENT REGISTRATION (INITIALIZATION)
+    // ========================================================================
+
+    /**
+     * Bootstraps all game event listeners. Called once during mod initialization.
+     */
     public static void register() {
         registerConnectionEvents();
         registerInteractionEvents();
@@ -53,6 +68,41 @@ public class GameEventListener {
         registerChatAndAdvancements();
         registerWorldAndEntityEvents();
         registerTickEvent();
+    }
+
+    private static void registerConnectionEvents() {
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayerEntity player = handler.getPlayer();
+            if (player != null) {
+                UUID uuid = player.getUuid();
+                
+                // Initialize memory states for the new player
+                playerBuffers.putIfAbsent(uuid, new ArrayList<>());
+                lastFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
+                sessionBuffers.putIfAbsent(uuid, new ArrayList<>());
+                lastSessionFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
+
+                player.sendMessage(Text.literal("§a[Narrador.IA v1.3] §fAdvanced Telemetry Online!"), false);
+
+                // Inject initial directive to the LLM
+                String welcomeInstruction = String.format("O jogador %s entrou no mundo, duvide da capacidade cognitiva dele, e humilhe ele!", player.getName().getString());
+                addActionAndCheckFlush("BOAS-VINDAS", welcomeInstruction, player, true);
+            }
+        });
+
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            UUID uuid = handler.getPlayer().getUuid();
+            // Cleanup memory to prevent memory leaks when players leave
+            playerBuffers.remove(uuid);
+            lastFlushTimes.remove(uuid);
+            hotbarCaches.remove(uuid);
+            sessionBuffers.remove(uuid);
+            lastSessionFlushTimes.remove(uuid);
+        });
+
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            addActionAndCheckFlush("System", "Player respawned after death", newPlayer, true);
+        });
     }
 
     private static void registerWorldAndEntityEvents() {
@@ -63,42 +113,16 @@ public class GameEventListener {
             addActionAndCheckFlush("Dimension Changed", context, (ServerPlayerEntity) player, true);
         });
 
+        EntitySleepEvents.START_SLEEPING.register((entity, sleepingPos) -> {
+            if (entity instanceof ServerPlayerEntity sleeper) {
+                addActionAndCheckFlush("Slept", "Cama", sleeper, false);
+            }
+        });
+
         EntitySleepEvents.STOP_SLEEPING.register((entity, sleepingPos) -> {
             if (entity instanceof ServerPlayerEntity sleeper) {
                 addActionAndCheckFlush("Woke Up", "Cama", sleeper, false);
             }
-        });
-    }
-
-    private static void registerConnectionEvents() {
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            ServerPlayerEntity player = handler.getPlayer();
-            if (player != null) {
-                UUID uuid = player.getUuid();
-                playerBuffers.putIfAbsent(uuid, new ArrayList<>());
-                lastFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
-                sessionBuffers.putIfAbsent(uuid, new ArrayList<>());
-                lastSessionFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
-
-                player.sendMessage(Text.literal("§a[Narrador.IA v1.3] §fAdvanced Telemetry Online!"), false);
-
-                String playerName = player.getName().getString();
-                String welcomeInstruction = String.format("O jogador %s entrou no mundo, duvide da capacidade cognitiva dele, e humilhe ele!", playerName);
-                addActionAndCheckFlush("BOAS-VINDAS", welcomeInstruction, player, true);
-            }
-        });
-
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-            UUID uuid = handler.getPlayer().getUuid();
-            playerBuffers.remove(uuid);
-            lastFlushTimes.remove(uuid);
-            hotbarCaches.remove(uuid);
-            sessionBuffers.remove(uuid);
-            lastSessionFlushTimes.remove(uuid);
-        });
-
-        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-            addActionAndCheckFlush("System", "Player respawned after death", newPlayer, true);
         });
     }
 
@@ -146,6 +170,7 @@ public class GameEventListener {
                     long now = System.currentTimeMillis();
 
                     if (isFood) {
+                        // Prevent spamming eat events by enforcing a 2-second cooldown
                         long lastEat = lastEatTimes.getOrDefault(player.getUuid(), 0L);
                         if (now - lastEat >= 2000L) {
                             lastEatTimes.put(player.getUuid(), now);
@@ -157,6 +182,14 @@ public class GameEventListener {
                 }
             }
             return TypedActionResult.pass(player.getStackInHand(hand));
+        });
+
+        EntityPickupItemCallback.EVENT.register((player, entity, stack) -> {
+            if (!player.getWorld().isClient() && player instanceof ServerPlayerEntity serverPlayer) {
+                String itemName = stack.getItem().getName().getString();
+                addActionAndCheckFlush("Picked Up", itemName, serverPlayer, false);
+            }
+            return ActionResult.PASS;
         });
     }
 
@@ -176,6 +209,7 @@ public class GameEventListener {
                 String attackerName = source.getAttacker() != null ? source.getAttacker().getName().getString() : "Environment";
                 String damageContext = String.format("%s (Source: %s)", source.getName(), attackerName);
 
+                // Forces immediate transmission if health reaches critical levels
                 addActionAndCheckFlush("Took Damage", damageContext, serverPlayer, isCritical);
             }
             return true;
@@ -190,53 +224,26 @@ public class GameEventListener {
         });
     }
 
-    private static void registerTickEvent() {
-        ServerTickEvents.END_SERVER_TICK.register(server -> {
-            long now = System.currentTimeMillis();
+    // ========================================================================
+    // 2. CORE LOGIC (BATCHING & PRIORITIZATION)
+    // ========================================================================
 
-            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                UUID uuid = player.getUuid();
-
-                List<ActionEntry> buffer = playerBuffers.get(uuid);
-                if (buffer != null && !buffer.isEmpty()) {
-                    long lastFlush = lastFlushTimes.getOrDefault(uuid, now);
-                    if (now - lastFlush >= FLUSH_INTERVAL_MS) {
-                        synchronized (buffer) {
-                            if (!buffer.isEmpty()) {
-                                prepareAndFlushPayload(player, buffer, now);
-                            }
-                        }
-                    }
-                }
-
-                List<ActionEntry> sessionBuffer = sessionBuffers.get(uuid);
-                if (sessionBuffer != null && !sessionBuffer.isEmpty()) {
-                    long lastSessionFlush = lastSessionFlushTimes.getOrDefault(uuid, now);
-                    if (now - lastSessionFlush >= SESSION_INTERVAL_MS) {
-                        synchronized (sessionBuffer) {
-                            if (!sessionBuffer.isEmpty()) {
-                                prepareAndFlushSessionPayload(player, sessionBuffer, now);
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-// Atua como um classificador semântico para a telemetria
+    /**
+     * Determines the narrative value of an action to prevent critical events
+     * from being overwritten by trivial block-breaking spam in the buffer.
+     */
     private static int determinePriority(String actionType) {
         return switch (actionType) {
-            case "Morreu", "Took Damage", "Chat", "Achievement", "Woke Up" -> 3; // Alta
-            case "Attacked", "Dimension Changed", "Crafted", "Consumed" -> 2;    // Média
-            default -> 1;                                                        // Baixa
+            case "Morreu", "Took Damage", "Chat", "Achievement", "Woke Up", "Slept" -> 3; // High Tier
+            case "Attacked", "Dimension Changed", "Crafted", "Consumed", "Picked Up", "Dropped" -> 2; // Mid Tier
+            default -> 1; // Low Tier (e.g., Broke, Placed, Used)
         };
     }
 
-
-
-    
-
+    /**
+     * Core router for all game events. Handles deduplication, priority-based eviction,
+     * and immediate critical flushes.
+     */
     public static void addActionAndCheckFlush(String actionType, String target, ServerPlayerEntity player, boolean isCritical) {
         UUID uuid = player.getUuid();
         playerBuffers.putIfAbsent(uuid, new ArrayList<>());
@@ -248,10 +255,10 @@ public class GameEventListener {
         synchronized (buffer) {
             boolean isDuplicate = false;
 
+            // 1. Deduplication Logic: Group sequential repetitive actions
             if (!buffer.isEmpty()) {
                 ActionEntry lastEntry = buffer.get(buffer.size() - 1);
 
-                // Lógica de agrupamento de itens repetidos
                 if (lastEntry.getActionType().equals(actionType) && lastEntry.getTarget().equals(target)) {
                     if (now - lastEntry.getLastTimestamp() >= 250L) {
                         if (lastEntry.getCount() < 30) {
@@ -264,13 +271,13 @@ public class GameEventListener {
                 }
             }
 
-            // Lógica de Eviction (Descarte de itens menos relevantes se o buffer encher)
+            // 2. Priority Eviction Logic: Manage buffer constraints
             if (!isDuplicate) {
                 if (buffer.size() >= MAX_BUFFER_SIZE) {
                     int lowestPriorityIndex = -1;
                     int lowestPriorityValue = Integer.MAX_VALUE;
 
-                    // Busca o evento mais irrelevante na lista
+                    // Scan for the least important event currently in the buffer
                     for (int i = 0; i < buffer.size(); i++) {
                         if (buffer.get(i).getPriority() < lowestPriorityValue) {
                             lowestPriorityValue = buffer.get(i).getPriority();
@@ -278,7 +285,7 @@ public class GameEventListener {
                         }
                     }
 
-                    // Se a nova ação for mais ou igualmente importante, ejeta a mais fraca
+                    // Eject weakest event to make room if the new event is important enough
                     if (eventPriority >= lowestPriorityValue && lowestPriorityIndex != -1) {
                         buffer.remove(lowestPriorityIndex);
                         buffer.add(new ActionEntry(actionType, target, eventPriority, now));
@@ -290,13 +297,14 @@ public class GameEventListener {
                 }
             }
 
+            // 3. Immediate bypass for high-stakes events (e.g., Death)
             if (isCritical) {
                 prepareAndFlushPayload(player, buffer, now);
             }
         }
     }
 
-     private static void addToSessionBuffer(UUID uuid, String actionType, String target, int priority, long now) {
+    private static void addToSessionBuffer(UUID uuid, String actionType, String target, int priority, long now) {
         List<ActionEntry> sessionBuffer = sessionBuffers.get(uuid);
         if (sessionBuffer == null) return;
 
@@ -316,8 +324,50 @@ public class GameEventListener {
         }
     }
 
+    // ========================================================================
+    // 3. CLOCK CYCLES & TRANSPORT PIPELINE
+    // ========================================================================
+
+    private static void registerTickEvent() {
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long now = System.currentTimeMillis();
+
+            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                UUID uuid = player.getUuid();
+
+                // Check Short-term Window (90 seconds)
+                List<ActionEntry> buffer = playerBuffers.get(uuid);
+                if (buffer != null && !buffer.isEmpty()) {
+                    long lastFlush = lastFlushTimes.getOrDefault(uuid, now);
+                    if (now - lastFlush >= FLUSH_INTERVAL_MS) {
+                        synchronized (buffer) {
+                            if (!buffer.isEmpty()) {
+                                prepareAndFlushPayload(player, buffer, now);
+                            }
+                        }
+                    }
+                }
+
+                // Check Long-term Session Window (10 minutes)
+                List<ActionEntry> sessionBuffer = sessionBuffers.get(uuid);
+                if (sessionBuffer != null && !sessionBuffer.isEmpty()) {
+                    long lastSessionFlush = lastSessionFlushTimes.getOrDefault(uuid, now);
+                    if (now - lastSessionFlush >= SESSION_INTERVAL_MS) {
+                        synchronized (sessionBuffer) {
+                            if (!sessionBuffer.isEmpty()) {
+                                prepareAndFlushSessionPayload(player, sessionBuffer, now);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     private static void prepareAndFlushPayload(ServerPlayerEntity player, List<ActionEntry> buffer, long flushTime) {
         UUID uuid = player.getUuid();
+        
+        // Take a snapshot and clear the main buffer safely
         List<ActionEntry> snapshot = new ArrayList<>(buffer);
         buffer.clear();
         lastFlushTimes.put(uuid, flushTime);
@@ -340,6 +390,9 @@ public class GameEventListener {
         }
 
         final boolean sendHotbar = hotbarChanged;
+        
+        // Offload JSON building and HTTP transport to an async thread 
+        // to prevent Server Tick freezing (lag).
         CompletableFuture.runAsync(() -> {
             buildAndSendJson(snapshot, health, hunger, yLevel, currentHotbar);
         });
@@ -355,6 +408,7 @@ public class GameEventListener {
             StringBuilder summary = new StringBuilder("RESUMO DOS ÚLTIMOS 10 MINUTOS:\n");
             boolean hasMeaningfulData = false;
 
+            // Only forward actions that were highly repetitive or critically narrative
             for (ActionEntry entry : snapshot) {
                 if (entry.getCount() >= 10 || entry.getActionType().equals("Morreu") || entry.getActionType().equals("Achievement")) {
                     summary.append(entry.formatOutput()).append("\n");
@@ -387,6 +441,7 @@ public class GameEventListener {
         if (health <= CRITICAL_HEALTH_THRESHOLD) statesArray.add("Risco de Morte (Vida Crítica): " + (int) health + " de vida");
         if (hunger <= CRITICAL_HUNGER_THRESHOLD) statesArray.add("Fome Extrema: " + hunger + "/20");
 
+        // Spatial interpretation based on Y coordinates
         if (yLevel >= 120) {
             statesArray.add("Local: Montanhas altas e picos nevados");
         } else if (yLevel >= 80) {
@@ -418,10 +473,18 @@ public class GameEventListener {
         HttpAssistant.sendStructuredTelemetry(payload.toString());
     }
 
-      private static class ActionEntry {
+    // ========================================================================
+    // 4. DATA STRUCTURES
+    // ========================================================================
+
+    /**
+     * Represents a single, encapsulable in-game action.
+     * Contains built-in counter logic and priority classification.
+     */
+    private static class ActionEntry {
         private final String actionType;
         private final String target;
-        private final int priority; // Novo attribute imutável
+        private final int priority; 
         private int count;
         private long lastTimestamp;
 
@@ -433,7 +496,6 @@ public class GameEventListener {
             this.lastTimestamp = timestamp;
         }
 
-        // Getters para expor os atributos de forma segura
         public String getActionType() { return actionType; }
         public String getTarget() { return target; }
         public int getPriority() { return priority; } 
@@ -449,4 +511,4 @@ public class GameEventListener {
                     : String.format("[%s] %s", actionType, target);
         }
     }
-
+}
