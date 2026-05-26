@@ -3,6 +3,7 @@ import random
 def analisar_telemetria(recent_actions: list[str], critical_states: list[str]) -> dict:
     """
     Recebe os Tiers do Java, monta a Timeline Estruturada e define a Intenção Narrativa.
+    Retorna também os scores de debug para exibição no console.
     """
     setup_actions = []
     progression_actions = []
@@ -153,10 +154,12 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str]) -
         }
         response_density = "indignant_question (2 frases questionando qual é o grande objetivo dele)"
 
+    # Retorna o dicionário completo com o log de debug incluído
     return {
         "scene_type": scene_type,
         "tone": tone,
         "focus_target": focus_target,
         "response_density": response_density,
-        "action_focus_str": action_focus_str
+        "action_focus_str": action_focus_str,
+        "debug_scores": f"Danger: {danger_score} | Progress: {progress_score} | Boredom: {boredom_score}"
     }
