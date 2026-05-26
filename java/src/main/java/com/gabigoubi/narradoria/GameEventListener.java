@@ -240,14 +240,17 @@ public class GameEventListener {
         });
     }
 
-    // ========================================================================
+    //     // ========================================================================
     // MOTOR LÓGICO E CLASSIFICAÇÃO
     // ========================================================================
     private static int determineTier(String actionType) {
         return switch (actionType) {
             case "Morreu", "Chat", "Achievement", "Dimension Changed", "BOAS-VINDAS", "Deep Dark" -> 1; 
-            case "Crafted", "Slept", "Took Damage", "Woke Up", "Ociosidade", "Tool Broke", "Tamed", "Breeding", "Traded", "Deep Dark Exit", "Pescou", "Used Station" -> 2; 
-            default -> 3; // "Opened" (Baús), "Broke", "Placed" entram aqui
+            
+            // Adicionado "Encantou" junto com as outras ações de progresso do Tier 2
+            case "Crafted", "Slept", "Took Damage", "Woke Up", "Ociosidade", "Tool Broke", "Tamed", "Breeding", "Traded", "Deep Dark Exit", "Pescou", "Used Station", "Encantou" -> 2; 
+            
+            default -> 3; // Lixo/Ruído do dia-a-dia
         };
     }
 
