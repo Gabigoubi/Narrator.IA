@@ -1,7 +1,6 @@
 package com.gabigoubi.narradoria;
 
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
-import net.fabricmc.fabric.api.event.player.EntityPickupItemCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -45,6 +44,9 @@ public class GameEventListener {
 
     private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f; // 2 Hearts
     private static final int CRITICAL_HUNGER_THRESHOLD = 4; // 2 Drumsticks
+    private static final long EASTER_EGG_TIME_MS = 900000L; // 15 minutos (900.000 ms)
+    private static final Map<UUID, Long> joinTimes = new ConcurrentHashMap<>();
+    private static final Map<UUID, Boolean> musicPlayed = new ConcurrentHashMap<>();
 
     // --- State Management (Thread-Safe Maps) ---
     private static final Map<UUID, List<ActionEntry>> playerBuffers = new ConcurrentHashMap<>();
@@ -75,20 +77,28 @@ public class GameEventListener {
             ServerPlayerEntity player = handler.getPlayer();
             if (player != null) {
                 UUID uuid = player.getUuid();
-                
+                joinTimes.put(uuid, System.currentTimeMillis());
+                musicPlayed.put(uuid, false);
                 // Initialize memory states for the new player
                 playerBuffers.putIfAbsent(uuid, new ArrayList<>());
                 lastFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
                 sessionBuffers.putIfAbsent(uuid, new ArrayList<>());
                 lastSessionFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
 
-                player.sendMessage(Text.literal("§a[Narrador.IA v1.3] §fAdvanced Telemetry Online!"), false);
+                // Welcome message and Telemetry status
+                player.sendMessage(Text.literal("§a[Narrador.IA v1.3.1] §fAdvanced Telemetry Online!"), false);
+
+                // Critical Update Warning (UI Notification)
+                player.sendMessage(Text.literal("§c[ATENÇÃO] §eSE VOCÊ ATUALIZOU A VERSÃO, DELETE A PASTA INTEIRA QUE VOCÊ BAIXOU NO GITHUB HUB, E INICIE A INSTALAÇÃO NOVAMENTE (VAI INSTALAR MUITO RÁPIDO)"), false);
+                player.sendMessage(Text.literal("§eA VERSÃO DO ARQUIVO TEM QUE ESTAR DE ACORDO COM A VERSÃO DO MOD. EX: Narrator.IA-dev-v1.3.1, versão do mod: narrador_ia-v1.3.1.jar"), false);
+                player.sendMessage(Text.literal("§cSENÃO O MOD NÃO VAI FUNCIONAR!"), false);
 
                 // Inject initial directive to the LLM
                 String welcomeInstruction = String.format("O jogador %s entrou no mundo, duvide da capacidade cognitiva dele, e humilhe ele!", player.getName().getString());
                 addActionAndCheckFlush("BOAS-VINDAS", welcomeInstruction, player, true);
             }
         });
+
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             UUID uuid = handler.getPlayer().getUuid();
@@ -98,6 +108,8 @@ public class GameEventListener {
             hotbarCaches.remove(uuid);
             sessionBuffers.remove(uuid);
             lastSessionFlushTimes.remove(uuid);
+            joinTimes.remove(uuid);
+            musicPlayed.remove(uuid);
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
@@ -129,9 +141,25 @@ public class GameEventListener {
     private static void registerChatAndAdvancements() {
         ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) -> {
             if (sender != null) {
-                addActionAndCheckFlush("Chat", message.getContent().getString(), sender, false);
+                addActionAndCheckFlush("Chat", message.getContent().getString(), sender, true); // Elevei para TRUE para disparo imediato
             }
         });
+
+        ServerMessageEvents.GAME_MESSAGE.register((server, message, overlay) -> {
+            String text = message.getString();
+
+            if (text.contains("alcançou o progresso") || text.contains("fez o progresso") || text.contains("has made the advancement")) {
+                if (!server.getPlayerManager().getPlayerList().isEmpty()) {
+                    ServerPlayerEntity player = server.getPlayerManager().getPlayerList().get(0);
+
+
+                    String achievementName = text.substring(text.indexOf("[") + 1, text.lastIndexOf("]"));
+
+                    addActionAndCheckFlush("Achievement", achievementName, player, false);
+                }
+            }
+        });
+
 
         ServerMessageEvents.GAME_MESSAGE.register((server, message, overlay) -> {
             String text = message.getString();
@@ -184,13 +212,7 @@ public class GameEventListener {
             return TypedActionResult.pass(player.getStackInHand(hand));
         });
 
-        EntityPickupItemCallback.EVENT.register((player, entity, stack) -> {
-            if (!player.getWorld().isClient() && player instanceof ServerPlayerEntity serverPlayer) {
-                String itemName = stack.getItem().getName().getString();
-                addActionAndCheckFlush("Picked Up", itemName, serverPlayer, false);
-            }
-            return ActionResult.PASS;
-        });
+
     }
 
     private static void registerCombatEvents() {
@@ -245,6 +267,9 @@ public class GameEventListener {
      * and immediate critical flushes.
      */
     public static void addActionAndCheckFlush(String actionType, String target, ServerPlayerEntity player, boolean isCritical) {
+        if (player.isCreative() || player.isSpectator()) {
+            return;
+        }
         UUID uuid = player.getUuid();
         playerBuffers.putIfAbsent(uuid, new ArrayList<>());
         List<ActionEntry> buffer = playerBuffers.get(uuid);
@@ -334,7 +359,15 @@ public class GameEventListener {
 
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 UUID uuid = player.getUuid();
+                Long joinTime = joinTimes.get(uuid);
+                Boolean played = musicPlayed.getOrDefault(uuid, true);
 
+                if (joinTime != null && !played) {
+                    if (now - joinTime >= EASTER_EGG_TIME_MS) {
+                        musicPlayed.put(uuid, true); // Trava para não tocar em loop infinito
+                        playEdsonHitSong();
+                    }
+                }
                 // Check Short-term Window (90 seconds)
                 List<ActionEntry> buffer = playerBuffers.get(uuid);
                 if (buffer != null && !buffer.isEmpty()) {
@@ -481,6 +514,39 @@ public class GameEventListener {
      * Represents a single, encapsulable in-game action.
      * Contains built-in counter logic and priority classification.
      */
+    private static void playEdsonHitSong() {
+        // Executa em uma Thread assíncrona isolada para o Minecraft não congelar (lagar)
+        CompletableFuture.runAsync(() -> {
+            try {
+                // Busca o arquivo diretamente das entranhas do JAR do Mod
+                java.io.InputStream resourceStream = GameEventListener.class.getResourceAsStream("/edson_hit.wav");
+
+                if (resourceStream == null) {
+                    NarradorIAMod.LOGGER.warn("[Narrador IA] Easter Egg falhou: edson_hit.wav nao encontrado dentro do JAR!");
+                    return;
+                }
+
+                // Transforma em um buffer stream. O Java precisa disso para conseguir processar o WAV corretamente
+                java.io.InputStream bufferedStream = new java.io.BufferedInputStream(resourceStream);
+                javax.sound.sampled.AudioInputStream audioStream = javax.sound.sampled.AudioSystem.getAudioInputStream(bufferedStream);
+                javax.sound.sampled.Clip clip = javax.sound.sampled.AudioSystem.getClip();
+
+                clip.open(audioStream);
+
+                // Eleva o ganho do volume para garantir que vai tocar no hype total
+                if (clip.isControlSupported(javax.sound.sampled.FloatControl.Type.MASTER_GAIN)) {
+                    javax.sound.sampled.FloatControl volume = (javax.sound.sampled.FloatControl) clip.getControl(javax.sound.sampled.FloatControl.Type.MASTER_GAIN);
+                    volume.setValue(2.0f);
+                }
+
+                System.out.println("[Narrador IA] 15 Minutos de sobrevivência! SOLTA O BEAT, DJ EDSON!!!");
+                clip.start();
+
+            } catch (Exception e) {
+                NarradorIAMod.LOGGER.error("[Narrador IA] Erro ao reproduzir o hit embutido do Edson: ", e);
+            }
+        });
+    }
     private static class ActionEntry {
         private final String actionType;
         private final String target;
