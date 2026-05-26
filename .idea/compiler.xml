@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="CompilerConfiguration">
+    <bytecodeTargetLevel>
+      <module name="narrador_ia" target="21" />
+    </bytecodeTargetLevel>
+  </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="com.gabigoubi.narrador_ia" options="-AoutRefMapFile=C:\Users\gabri\OneDrive\Documentos\Projetos\Narrator.IA\java\build\classes\java\main\narrador_ia-refmap.json -AdefaultObfuscationEnv=named:intermediary -Aquiet=true -AoutMapFileNamedIntermediary=C:\Users\gabri\OneDrive\Documentos\Projetos\Narrator.IA\java\build\loom-cache\mixin-map-net.fabricmc.yarn.1_21_1.1.21.1+build.1-v2.main.tiny -AinMapFileNamedIntermediary=C:\Users\gabri\.gradle\caches\fabric-loom\1.21.1\net.fabricmc.yarn.1_21_1.1.21.1+build.1-v2\mappings.tiny" />
       <module name="narrador_ia" options="-AoutRefMapFile=C:\Users\gabri\OneDrive\Documentos\Projetos\Narrator.IA\java\build\classes\java\main\narrador_ia-refmap.json -AdefaultObfuscationEnv=named:intermediary -Aquiet=true -AoutMapFileNamedIntermediary=C:\Users\gabri\OneDrive\Documentos\Projetos\Narrator.IA\java\build\loom-cache\mixin-map-net.fabricmc.yarn.1_21_1.1.21.1+build.1-v2.main.tiny -AinMapFileNamedIntermediary=C:\Users\gabri\.gradle\caches\fabric-loom\1.21.1\net.fabricmc.yarn.1_21_1.1.21.1+build.1-v2\mappings.tiny" />
       <module name="narrador_ia.main" options="-AoutRefMapFile=C:\Users\gabri\OneDrive\Documentos\Projetos\Narrator.IA\java\build\classes\java\main\narrador_ia-refmap.json -AdefaultObfuscationEnv=named:intermediary -Aquiet=true -AoutMapFileNamedIntermediary=C:\Users\gabri\OneDrive\Documentos\Projetos\Narrator.IA\java\build\loom-cache\mixin-map-net.fabricmc.yarn.1_21_1.1.21.1+build.1-v2.main.tiny -AinMapFileNamedIntermediary=C:\Users\gabri\.gradle\caches\fabric-loom\1.21.1\net.fabricmc.yarn.1_21_1.1.21.1+build.1-v2\mappings.tiny" />
       <module name="narrador_ia.test" options="-AoutRefMapFile=C:\Users\gabri\OneDrive\Documentos\Projetos\Narrator.IA\java\build\classes\java\test\test-narrador_ia-refmap.json -AdefaultObfuscationEnv=named:intermediary -Aquiet=true -AoutMapFileNamedIntermediary=C:\Users\gabri\OneDrive\Documentos\Projetos\Narrator.IA\java\build\loom-cache\mixin-map-net.fabricmc.yarn.1_21_1.1.21.1+build.1-v2.test.tiny -AinMapFileNamedIntermediary=C:\Users\gabri\.gradle\caches\fabric-loom\1.21.1\net.fabricmc.yarn.1_21_1.1.21.1+build.1-v2\mappings.tiny" />
