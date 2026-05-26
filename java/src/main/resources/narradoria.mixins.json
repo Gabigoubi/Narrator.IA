@@ -10,7 +10,8 @@
     "MixinTameableEntity",
     "MixinAnimalEntity",
     "MixinVillagerEntity",
-    "MixinFishingBobberEntity"
+    "MixinFishingBobberEntity",
+    "MixinEnchantmentScreenHandler"
   ],
   "injectors": {
     "defaultRequire": 1
