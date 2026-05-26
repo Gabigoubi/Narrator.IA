@@ -11,7 +11,9 @@ from app.tts import generate_speech_stream
 from app.memory import SlidingMemory
 from app.regente import analisar_telemetria
 
-# --- CONFIGURATION CONSTANTS ---
+# ========================================================================
+# CONFIGURAÇÕES E ESTADO GLOBAL
+# ========================================================================
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
 OLLAMA_PULL_URL = "http://localhost:11434/api/pull"
@@ -20,10 +22,10 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 TIMEOUT_OLLAMA = 300
 DEFAULT_MODEL = "mistral"
 
-# --- DEV MODE DETECTOR ---
 GROQ_API_KEY = None
 IS_DEV_MODE = False
 
+# Carregamento do .env (Se existir)
 if os.path.exists(".env"):
     with open(".env", "r", encoding="utf-8") as f:
         for line in f:
@@ -34,24 +36,27 @@ if os.path.exists(".env"):
                 IS_DEV_MODE = (val == "true")
 
 if GROQ_API_KEY and IS_DEV_MODE:
-    print("\n[BOOT] 🚀 [DEV MODE] Cloud infrastructure active. Debug logs ON.")
+    print("\n[BOOT] 🚀 [DEV MODE] Infraestrutura Groq ativada. Logs de Debug ON.")
 else:
-    IS_DEV_MODE = False # Força false se não estiver explícito
+    IS_DEV_MODE = False # Força false se a chave não estiver configurada ou modo estiver false
 
-# --- DATA MODELS ---
+# ========================================================================
+# MODELOS DE DADOS (PYDANTIC)
+# ========================================================================
 class PlayerTelemetry(BaseModel):
     voice_model: str
     critical_states: list[str]
     hotbar: list[str] | None = None
     recent_actions: list[str]
 
-# --- HARDWARE PROTECTION ---
+# ========================================================================
+# ROTINAS DE PROTEÇÃO E INICIALIZAÇÃO
+# ========================================================================
 def check_hardware_requirements():
-    if IS_DEV_MODE:
-        return
+    if IS_DEV_MODE: return
     ram_gb = psutil.virtual_memory().total / (1024 ** 3)
     if ram_gb < 11.5:
-        print("\n❌ [CRITICAL HARDWARE ERROR] Narrador IA requires 12GB RAM minimum.")
+        print("\n❌ [ERRO CRITICO DE HARDWARE] O Narrador IA exige no mínimo 12GB de RAM física.")
         sys.exit(1)
 
 def ensure_model_exists():
@@ -61,42 +66,55 @@ def ensure_model_exists():
         response.raise_for_status()
         models = [m["name"] for m in response.json().get("models", [])]
         if DEFAULT_MODEL not in models and f"{DEFAULT_MODEL}:latest" not in models:
-            print(f"[BOOT] ⚠️ Model '{DEFAULT_MODEL}' not found. Downloading (~4.1GB)...")
+            print(f"[BOOT] ⚠️ Modelo base '{DEFAULT_MODEL}' não encontrado. Baixando (~4.1GB)...")
             requests.post(OLLAMA_PULL_URL, json={"name": DEFAULT_MODEL, "stream": False}, timeout=3600)
     except Exception as e:
-        print(f"\n[BOOT FATAL] ❌ Failed to communicate with Ollama: {str(e)}")
+        print(f"\n[BOOT FATAL] ❌ Falha na comunicação com o motor local (Ollama): {str(e)}")
         sys.exit(1)
 
 check_hardware_requirements()
 ensure_model_exists()
 
 print("\n" + "=" * 50)
-print(" 🎙️ Edson Calotas - Servidor Iniciado")
+print(" 🎙️ Edson Calotas - Motor Cognitivo Iniciado")
 print("=" * 50 + "\n")
 
 app = FastAPI()
 edson_memory = SlidingMemory(max_history=3)
 
-# --- LOGGING HELPER (ÉPICO 5) ---
-def log_step(step_num: int, message: str, dev_dump: str = None):
+# ========================================================================
+# ROTINAS DE OBSERVABILIDADE E LOGS (ÉPICO 5)
+# ========================================================================
+def log_step(step_num: int, message: str):
     if not IS_DEV_MODE:
         print(f" [{step_num}/4] {message}")
     else:
-        print(f"\n▼ [PASSO {step_num}] {message}")
-        if dev_dump:
-            print(f"--- DADOS ---\n{dev_dump}\n-------------")
+        print(f"\n▼ [ETAPA {step_num}] {message}")
 
-# --- ROUTES ---
+def log_dashboard(telemetry, direcao, user_data):
+    if not IS_DEV_MODE: return
+    print("\n" + "█" * 70)
+    print(" 🧠 DUMP DO CÉREBRO (REGENTE) ".center(70, "█"))
+    print("█" * 70)
+    print(f"\n📥 1. DADOS BRUTOS RECEBIDOS DO JAVA:\n{telemetry.model_dump_json(indent=2)}")
+    print(f"\n📊 2. SCORES CALCULADOS PELA LÓGICA:\n   {direcao['debug_scores']}")
+    print(f"\n🎭 3. DECISÃO DE CENA E TOM:\n   Tipo de Cena: {direcao['scene_type']}\n   Tom Vocal: {direcao['tone']}")
+    print(f"\n📜 4. ROTEIRO FINAL ENVIADO PARA A IA (LLM):\n{user_data}")
+    print("\n" + "█" * 70 + "\n")
+
+# ========================================================================
+# ROTA PRINCIPAL (API DE NARRATIVA)
+# ========================================================================
 @app.post("/narrate")
 def generate_narration(telemetry: PlayerTelemetry):
     try:
-        log_step(1, "Recebendo telemetria...", dev_dump=telemetry.model_dump_json(indent=2))
+        log_step(1, "Pacote de telemetria recebido do Java.")
 
-        # 1. Regente Analisa (ÉPICO 4)
+        # 1. Regente Analisa e Pontua (ÉPICO 4)
         direcao = analisar_telemetria(telemetry.recent_actions, telemetry.critical_states)
-        log_step(2, f"Escrevendo roteiro (Cena: {direcao['scene_type']})...", dev_dump=direcao['action_focus_str'])
+        log_step(2, f"Roteiro escrito pelo Regente (Cena determinada: {direcao['scene_type']}).")
 
-        # 2. Monta Prompt
+        # 2. Monta o Prompt Final
         current_memory = edson_memory.get_context_string()
         critical_states_str = "\n".join(f"- {s}" for s in telemetry.critical_states)
         hotbar_str = ", ".join(telemetry.hotbar) if telemetry.hotbar else "Vazio"
@@ -113,21 +131,27 @@ def generate_narration(telemetry: PlayerTelemetry):
             response_density=direcao['response_density']
         )
 
+        # Imprime o Dashboard Completo para o Desenvolvedor
+        log_dashboard(telemetry, direcao, user_data)
+
         # 3. Inferência LLM
-        log_step(3, "Gerando atuação do Edson (LLM + TTS)...", dev_dump=user_data)
+        log_step(3, "Enviando roteiro para atuação da IA (Inferência)...")
         ai_text = fetch_ai_response(system_rules, user_data)
         
-        # O Edson lembra do comportamento que criticou, e não do texto bruto
+        # Grava a lição de moral na memória
         edson_memory.add_interaction(direcao['focus_target']['behavior'], ai_text)
 
-        # 4. Áudio
+        # 4. Geração de Áudio
+        log_step(4, "Sintetizando voz e despachando áudio...")
         audio_buffer = generate_speech_stream(ai_text)
-        log_step(4, "Áudio enviado para o Minecraft com sucesso!\n" + "-" * 50)
+        
+        if IS_DEV_MODE:
+            print("\n[SUCESSO] Pacote de áudio .WAV enviado para o Minecraft.\n" + "-" * 70)
 
         return StreamingResponse(audio_buffer, media_type="audio/wav")
         
     except Exception as e: 
-        print(f"\n❌ [ERRO NO PIPELINE]: {str(e)}")
+        print(f"\n❌ [ERRO CRÍTICO NO PIPELINE]: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -144,6 +168,9 @@ def fetch_ai_response(system_prompt: str, user_prompt: str) -> str:
         response.raise_for_status()
         ai_text = response.json().get("response", "").strip()
         
-    if not ai_text: raise ValueError("A LLM retornou um texto vazio.")
-    if IS_DEV_MODE: print(f"\n🗣️ [FALA GERADA]:\n{ai_text}\n")
+    if not ai_text: raise ValueError("A LLM retornou um texto vazio ou nulo.")
+    
+    if IS_DEV_MODE: 
+        print(f"\n🗣️ [RESPOSTA DE ÁUDIO GERADA]:\n{ai_text}")
+        
     return ai_text
