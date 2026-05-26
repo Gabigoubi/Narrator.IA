@@ -9,7 +9,8 @@
     "MixinLivingEntity",
     "MixinTameableEntity",
     "MixinAnimalEntity",
-    "MixinVillagerEntity"
+    "MixinVillagerEntity",
+    "MixinFishingBobberEntity"
   ],
   "injectors": {
     "defaultRequire": 1
