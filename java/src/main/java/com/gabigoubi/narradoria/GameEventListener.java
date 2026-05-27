@@ -162,9 +162,17 @@ public class GameEventListener {
     }
 
     private static void registerInteractionEvents() {
-        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
+    PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             if (!world.isClient() && player instanceof ServerPlayerEntity serverPlayer) {
-                addActionAndCheckFlush("Broke", state.getBlock().getName().getString(), serverPlayer, false);
+                String blockName = state.getBlock().getName().getString();
+                int yLevel = pos.getY();
+
+                // Lógica afiada: O cara só está "Minerando" de verdade se acertar o minério nas profundezas!
+                if (yLevel <= 50 && (blockName.contains("Ore") || blockName.contains("Minério"))) {
+                    addActionAndCheckFlush("Minerando", blockName, serverPlayer, false);
+                } else {
+                    addActionAndCheckFlush("Broke", blockName, serverPlayer, false);
+                }
             }
         });
 
@@ -243,14 +251,14 @@ public class GameEventListener {
     //     // ========================================================================
     // MOTOR LÓGICO E CLASSIFICAÇÃO
     // ========================================================================
-    private static int determineTier(String actionType) {
+   private static int determineTier(String actionType) {
         return switch (actionType) {
             case "Morreu", "Chat", "Achievement", "Dimension Changed", "BOAS-VINDAS", "Deep Dark" -> 1; 
             
-            // Adicionado "Encantou" junto com as outras ações de progresso do Tier 2
-            case "Crafted", "Slept", "Took Damage", "Woke Up", "Ociosidade", "Tool Broke", "Tamed", "Breeding", "Traded", "Deep Dark Exit", "Pescou", "Used Station", "Encantou" -> 2; 
+            // "Minerando" adicionado no Tier de Progresso (Tier 2)
+            case "Crafted", "Slept", "Took Damage", "Woke Up", "Ociosidade", "Tool Broke", "Tamed", "Breeding", "Traded", "Deep Dark Exit", "Pescou", "Used Station", "Encantou", "Minerando" -> 2; 
             
-            default -> 3; // Lixo/Ruído do dia-a-dia
+            default -> 3; // "Broke" de pedra, terra e lixo continua caindo aqui (Tier 3)
         };
     }
 
@@ -402,32 +410,47 @@ public class GameEventListener {
                     long lastFlush = lastFlushTimes.getOrDefault(uuid, now);
                     long timeElapsed = now - lastFlush;
                     
-                    synchronized (buffer) {
+                   synchronized (buffer) {
                         boolean hasTier1or2 = buffer.stream().anyMatch(e -> e.getTier() <= 2);
-                        boolean reachedVolume = buffer.size() >= 20;
-                        boolean reachedTime = timeElapsed >= FLUSH_INTERVAL_MS;
+                        boolean hasMinimumVolume = buffer.size() >= 20;
 
-                        if ((reachedVolume || reachedTime) && hasTier1or2) {
-                            if (HttpAssistant.isNarrating()) {
-                                if (isOneSecondTick) { 
-                                    NarradorIAMod.LOGGER.info("[CICLO INTERNO] ⏳ Retendo disparo: Edson esta falando.");
-                                }
-                            } else {
-                                NarradorIAMod.LOGGER.info("==================================================");
-                                NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO AUTORIZADO PARA O PYTHON!");
-                                NarradorIAMod.LOGGER.info(String.format("[CICLO INTERNO] Motivo -> Bateu Volume: %b | Bateu Tempo: %b", reachedVolume, reachedTime));
-                                NarradorIAMod.LOGGER.info("==================================================");
-                                prepareAndFlushPayload(player, buffer, now);
-                            }
-                        } else if (timeElapsed >= IDLE_TIMEOUT_MS && !hasTier1or2) {
-                            if (!HttpAssistant.isNarrating()) {
-                                long lastIdle = lastIdleTimes.getOrDefault(uuid, 0L);
-                                if (now - lastIdle >= IDLE_COOLDOWN_MS) {
-                                    addActionAndCheckFlush("Ociosidade", "Jogador nao fez nenhum progresso util nos ultimos minutos", player, false);
-                                    lastIdleTimes.put(uuid, now);
+                        // 1. O relógio bateu os 90 segundos (FLUSH_INTERVAL_MS)?
+                        if (timeElapsed >= FLUSH_INTERVAL_MS) {
+                            
+                            // 2. Regra de Ouro: Precisa de Volume MÍNIMO (20+) E Relevância (Tier 1 ou 2)
+                            if (hasMinimumVolume && hasTier1or2) {
+                                if (HttpAssistant.isNarrating()) {
+                                    if (isOneSecondTick) { 
+                                        NarradorIAMod.LOGGER.info("[CICLO INTERNO] ⏳ Retendo disparo: Edson esta falando.");
+                                    }
                                 } else {
-                                    buffer.clear();
-                                    lastFlushTimes.put(uuid, now);
+                                    NarradorIAMod.LOGGER.info("==================================================");
+                                    NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO PERFEITO (90s + 20 Eventos + Tier 1/2)");
+                                    NarradorIAMod.LOGGER.info("==================================================");
+                                    prepareAndFlushPayload(player, buffer, now);
+                                }
+                            } 
+                            // 3. Extensão estourou (Chegou aos 180 segundos - IDLE_TIMEOUT_MS)
+                            else if (timeElapsed >= IDLE_TIMEOUT_MS) {
+                                if (!hasTier1or2) {
+                                    // Panguão autêntico: 3 minutos sem Tier 1 ou 2
+                                    if (!HttpAssistant.isNarrating()) {
+                                        long lastIdle = lastIdleTimes.getOrDefault(uuid, 0L);
+                                        if (now - lastIdle >= IDLE_COOLDOWN_MS) {
+                                            addActionAndCheckFlush("Ociosidade", "Jogador nao fez nenhum progresso util nos ultimos minutos", player, false);
+                                            lastIdleTimes.put(uuid, now);
+                                        } else {
+                                            buffer.clear();
+                                            lastFlushTimes.put(uuid, now);
+                                        }
+                                    }
+                                } else {
+                                    // Edge case: O cara fez algo Tier 2, mas joga TÃO devagar que não fez 20 coisas em 3 minutos.
+                                    // Manda o que tem pra não perder a fofoca do Tier 2 no vazio.
+                                    if (!HttpAssistant.isNarrating()) {
+                                        NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO FORÇADO (180s - Baixo volume, mas com relevância)");
+                                        prepareAndFlushPayload(player, buffer, now);
+                                    }
                                 }
                             }
                         }
