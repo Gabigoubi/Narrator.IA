@@ -12,7 +12,7 @@ from app.tts import generate_speech_stream
 from app.memory import SlidingMemory
 
 # --- CONFIGURATION CONSTANTS ---
-OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
+OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
 OLLAMA_PULL_URL = "http://localhost:11434/api/pull"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -101,7 +101,7 @@ print("=" * 60 + "\n")
 
 app = FastAPI()
 
-# 2. Inicializa a memória do Edson (janela de 3 interações)
+# Inicializa a memória do Edson (janela de 3 interações)
 edson_memory = SlidingMemory(max_history=3)
 
 # --- ROUTES ---
@@ -320,9 +320,9 @@ def fetch_ai_response(system_prompt: str, user_prompt: str) -> str:
         }
         print(f" 🧠 [LOCAL LLM] Inferring context with '{DEFAULT_MODEL}'...")
    
-        response = requests.post(OLLAMA_GENERATE_URL, json=payload, timeout=TIMEOUT_OLLAMA)
+        response = requests.post(OLLAMA_CHAT_URL, json=payload, timeout=TIMEOUT_OLLAMA)
         response.raise_for_status()
-        ai_text = response.json().get("response", "").strip()
+        ai_text = response.json().get("message", {}).get("content", "").strip()
         
     print("-" * 60)
     print(f" 💬 [EDSON'S SCRIPT]:\n    '{ai_text}'")
@@ -332,4 +332,4 @@ def fetch_ai_response(system_prompt: str, user_prompt: str) -> str:
         raise ValueError("LLM returned an empty string.")
         
     return ai_text
-        
+                                                       
