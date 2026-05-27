@@ -22,6 +22,7 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.text.Text;
+import net.minecraft.text.ClickEvent;
 
 // --- Imports do Java e Bibliotecas ---
 import java.util.ArrayList;
@@ -105,7 +106,12 @@ public class GameEventListener {
                 inDeepDark.putIfAbsent(uuid, false);
                 isRainingCache.putIfAbsent(uuid, false);
 
-                player.sendMessage(Text.literal("§a[Narrador.IA] §fSistema Anti-Perda e Sensores Online!"), false);
+           
+                player.sendMessage(Text.literal("§c[Narrador IA] §fEdson Calotas entrou no mundo. Prepare-se para ser esculachado!"), false);
+                player.sendMessage(Text.literal("§e[Aviso] §fSe você usava a versão anterior, é OBRIGATÓRIO atualizar a pasta 'server'. Baixe os arquivos novos no GitHub! (O Link está na descrição do mod)"), false);
+                player.sendMessage(Text.literal("§b[Suporte] §fQuer uma ajuda direta? Fale comigo através do meu server no Discord! ")
+                        .append(Text.literal("§b§n[CLIQUE AQUI PARA ENTRAR]")
+                        .styled(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://discord.gg/G6tNE5bQbH")))), false);
                 addActionAndCheckFlush("BOAS-VINDAS", "Entrou no mundo", player, false);
             }
         });
