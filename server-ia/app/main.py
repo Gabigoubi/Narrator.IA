@@ -121,7 +121,6 @@ def generate_narration(telemetry: PlayerTelemetry):
         
         # Categorize and weight incoming telemetry
         for action in telemetry.recent_actions:
-          
             if "BOAS-VINDAS" in action:                
                 is_welcome = True                        
                 high_stakes.append(action)              
@@ -144,8 +143,6 @@ def generate_narration(telemetry: PlayerTelemetry):
                 
         # Evaluate critical states from the Java client
         for state in telemetry.critical_states:
-
-            
             if "Risco de Morte" in state or "Fome Extrema" in state:
                 danger_score += 5
                 
@@ -226,7 +223,7 @@ def generate_narration(telemetry: PlayerTelemetry):
             ])
 
         # Extracts only the relevant actions to avoid token bloat for the LLM
-       # --- ANTI-INJECTION SHIELD (Zona de Quarentena) ---
+        # --- ANTI-INJECTION SHIELD (Zona de Quarentena) ---
         raw_actions = high_stakes if high_stakes else telemetry.recent_actions
         safe_actions = []
         
@@ -238,7 +235,6 @@ def generate_narration(telemetry: PlayerTelemetry):
                 safe_actions.append(f"- {a}")
 
         action_focus_str = "\n".join(safe_actions)
-
 
         # 2. Visual Debug Log
         print("\n" + "▼" * 60)
@@ -336,3 +332,4 @@ def fetch_ai_response(system_prompt: str, user_prompt: str) -> str:
         raise ValueError("LLM returned an empty string.")
         
     return ai_text
+        
