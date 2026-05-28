@@ -266,9 +266,14 @@ public class GameEventListener {
         if (player.isCreative() || player.isSpectator()) return;
 
 
-        if (target != null && (target.toLowerCase().contains("ar") || target.toLowerCase().contains("air"))) {
-            return;
+        // 🚨 FILTRO PRECISO ANTI-AR: Descarta apenas se a string for literalmente o vazio ou a entidade "Air"
+        if (target != null) {
+            String t = target.trim(); // Remove espaços em branco antes ou depois
+            if (t.isEmpty() || t.equalsIgnoreCase("Ar") || t.equalsIgnoreCase("Air") || t.equalsIgnoreCase("0x Ar") || t.equalsIgnoreCase("0x Air")) {
+                return;
+            }
         }
+
 
         UUID uuid = player.getUuid();
         int eventTier = determineTier(actionType);
