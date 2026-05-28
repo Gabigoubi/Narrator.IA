@@ -9,7 +9,7 @@ Bem-vindo ao projeto! O Narrador IA evoluiu. O que começou como uma zoeira para
 
 Conheça o **Edson Calotas**, nosso parceiro virtual da Zona Leste. Ele não é mais um bot que lê logs do sistema; ele é um ator que recebe direção de cena e interpreta sua mediocridade no jogo com sarcasmo e deboche.
 
-**Página Oficial e Download do Mod:** [https://www.curseforge.com/minecraft/mc-mods/narrator-ia](https://www.curseforge.com/minecraft/mc-mods/narrator-ia)
+**Página Oficial e Download do Mod:** [https://www.curseforge.com/minecraft/mc-mods/narrator-ia](https://www.curseforge.com/minecraft/mc-mods/narrador-ia)
 
 **Servidor Oficial do Discord:** [Narrador IA - Oficial](https://discord.gg/G6tNE5bQbH)
 
