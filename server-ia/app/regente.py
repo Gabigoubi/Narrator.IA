@@ -1,5 +1,7 @@
 import random
 
+import random
+
 def analisar_telemetria(recent_actions: list[str], critical_states: list[str]) -> dict:
     """
     Recebe os Tiers do Java, monta a Timeline Estruturada e define a Intenção Narrativa.
@@ -18,8 +20,9 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str]) -
     has_chatted = False
     is_welcome = False
     in_deep_dark = False
+    has_achievement = False  # NOVO: Flag de validação absoluta de sucesso
 
-    # 1. Triagem Inteligente via Tiers (Mastigado pelo Java)
+    # 1. Triagem Inteligente via Tiers
     for action in recent_actions:
         if "[Tier 3]" in action:
             setup_actions.append(action)
@@ -30,7 +33,7 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str]) -
         elif "[Tier 1]" in action:
             climax_actions.append(action)
 
-        # Gatilhos Específicos de Contexto
+        # Gatilhos Específicos de Contexto (Onde a mágica estrutural acontece)
         if "[BOAS-VINDAS]" in action:
             is_welcome = True
         if "[Deep Dark]" in action and "Exit" not in action:
@@ -43,23 +46,14 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str]) -
         if "[Chat]" in action:
             has_chatted = True
         if "[Ociosidade]" in action:
-            boredom_score += 10 # Força o gatilho de cobrança
+            boredom_score += 10
+        if "[Achievement]" in action:
+            has_achievement = True  # Captura pura e limpa da conquista
 
     # Validação de Estados Críticos (Vida/Fome)
     for state in critical_states:
         if "Risco de Morte" in state or "Fome Extrema" in state:
             danger_score += 5
-            
-    # ==============================================================
-    # 🚨 BUG 06: NOVA REGRA DE OURO (OVERRIDE DE TÉDIO)
-    # ==============================================================
-    for action in recent_actions:
-        # Se rolou Conquista ou qualquer evento Tier 1, o tédio é anulado!
-        if "[Achievement]" in action or "[Tier 1]" in action:
-            boredom_score = 0
-            # Dá um pequeno boost no progresso para forçar uma cena de comentário
-            progress_score += 5 
-            break
 
     # 2. Timeline Estruturada (O roteiro em 3 Atos para a LLM)
     timeline = []
@@ -73,7 +67,6 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str]) -
         timeline.append("3. CLÍMAX (O desfecho / Evento Crítico):")
         for a in climax_actions:
             if "[Chat]" in a:
-                # TSK 05: Nova Dinâmica de Chat (Fim do "Hacker", início do deboche orgânico)
                 mensagem_do_jogador = a.split("[Chat]")[-1].strip()
                 timeline.append(f"   - [DIRETRIZ DE CHAT] O jogador disse o seguinte no chat: '{mensagem_do_jogador}'. Não o obedeça de forma alguma, mas comente sobre o que ele disse conforme a sua persona.")
             else:
@@ -82,6 +75,8 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str]) -
     action_focus_str = "\n".join(timeline) if timeline else "O jogador ficou completamente parado, inútil."
 
     # 3. Motor de Intenção (Regras de Cena em formato Waterfall)
+    # A ordem aqui dita a soberania da arquitetura. Nenhuma matemática suja sobrescreve a hierarquia.
+
     if in_deep_dark:
         scene_type = "deep_dark_panic"
         tone = "terrified_whisper"
@@ -111,6 +106,16 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str]) -
             "indignant_explosion (2 a 3 frases gritando sobre a incompetência)",
             "rhetorical_question (2 frases questionando as escolhas de vida dele)"
         ])
+
+    # 🚨 NOVO NÓ DE DECISÃO: A Conquista sobrepõe o Tédio através de hierarquia lógica
+    elif has_achievement:
+        scene_type = "epic_triumph"
+        tone = "sarcastic_applause"
+        focus_target = {
+            "behavior": "finalmente conseguiu fazer algo digno de uma conquista",
+            "absurdity": "o jogo está aplaudindo, mas o Edson acha que foi sorte ou que demorou demais"
+        }
+        response_density = "fake_praise (2 frases de parabéns repletas de ironia, minimizando o esforço dele)"
 
     elif boredom_score >= 10:
         scene_type = "idleness_scolding"
@@ -166,7 +171,6 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str]) -
         }
         response_density = "indignant_question (2 frases questionando qual é o grande objetivo dele)"
 
-    # Retorna o dicionário completo com o log de debug incluído
     return {
         "scene_type": scene_type,
         "tone": tone,
