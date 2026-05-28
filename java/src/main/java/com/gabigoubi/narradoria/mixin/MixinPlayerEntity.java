@@ -16,11 +16,15 @@ public abstract class MixinPlayerEntity {
 
     @Inject(method = "dropItem(Lnet/minecraft/item/ItemStack;ZZ)Lnet/minecraft/entity/ItemEntity;", at = @At("HEAD"))
     private void onDropItem(ItemStack stack, boolean throwRandomly, boolean retainOwnership, CallbackInfoReturnable<ItemEntity> cir) {
-        if (!stack.isEmpty()) {
-            Object self = this;
-            if (self instanceof ServerPlayerEntity serverPlayer && !serverPlayer.getWorld().isClient()) {
+        Object self = this;
+
+        if (!stack.isEmpty() && self instanceof ServerPlayerEntity serverPlayer && !serverPlayer.getWorld().isClient()) {
+
+
+            if (serverPlayer.isAlive() && serverPlayer.getHealth() > 0.0f &&
+                    !stack.getItem().getName().getString().toLowerCase().contains("air")) {
+
                 String itemName = stack.getItem().getName().getString();
-                // Envia para o nosso Buffer Inteligente
                 GameEventListener.addActionAndCheckFlush("Dropped", itemName, serverPlayer, false);
             }
         }

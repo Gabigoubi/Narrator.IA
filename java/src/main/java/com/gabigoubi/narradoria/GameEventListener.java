@@ -44,32 +44,32 @@ public class GameEventListener {
     // CONSTANTES E CONFIGURAÇÕES DE TEMPO
     // ========================================================================
     private static final String VOICE_MODEL = "pm_alex";
-    private static final int MAX_BUFFER_SIZE = 30; 
+    private static final int MAX_BUFFER_SIZE = 30;
     private static final long FLUSH_INTERVAL_MS = 90000L;
     private static final long IDLE_TIMEOUT_MS = 180000L;
     private static final long IDLE_COOLDOWN_MS = 600000L;
-    private static final long SESSION_INTERVAL_MS = 600000L;
+    private static final long SESSION_INTERVAL_MS = 1200000L; // ATUALIZADO: 20 Minutos
     private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f;
     private static final int CRITICAL_HUNGER_THRESHOLD = 4;
     private static final long EASTER_EGG_TIME_MS = 900000L;
-    
+
     // ========================================================================
     // MAPAS DE ESTADO (THREAD-SAFE)
     // ========================================================================
     private static final Map<UUID, Long> joinTimes = new ConcurrentHashMap<>();
     private static final Map<UUID, Boolean> musicPlayed = new ConcurrentHashMap<>();
-    
+
     // Buffers de Eventos
     private static final Map<UUID, List<ActionEntry>> playerBuffers = new ConcurrentHashMap<>();
-    private static final Map<UUID, List<ActionEntry>> tempTier1Buffers = new ConcurrentHashMap<>(); // Buffer de Retenção (TTS Lock)
+    private static final Map<UUID, List<ActionEntry>> tempTier1Buffers = new ConcurrentHashMap<>();
     private static final Map<UUID, List<ActionEntry>> sessionBuffers = new ConcurrentHashMap<>();
-    
+
     // Controle de Tempo e Ociosidade
     private static final Map<UUID, Long> lastFlushTimes = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastIdleTimes = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastSessionFlushTimes = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastEatTimes = new ConcurrentHashMap<>();
-    
+
     // Caches e Sensores
     private static final Map<UUID, List<String>> hotbarCaches = new ConcurrentHashMap<>();
     private static final Map<UUID, Boolean> inDeepDark = new ConcurrentHashMap<>();
@@ -94,24 +94,24 @@ public class GameEventListener {
                 UUID uuid = player.getUuid();
                 joinTimes.put(uuid, System.currentTimeMillis());
                 musicPlayed.put(uuid, false);
-                
+
                 playerBuffers.putIfAbsent(uuid, new ArrayList<>());
                 tempTier1Buffers.putIfAbsent(uuid, new ArrayList<>());
                 sessionBuffers.putIfAbsent(uuid, new ArrayList<>());
-                
+
                 lastFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
                 lastIdleTimes.putIfAbsent(uuid, 0L);
                 lastSessionFlushTimes.putIfAbsent(uuid, System.currentTimeMillis());
-                
+
                 inDeepDark.putIfAbsent(uuid, false);
                 isRainingCache.putIfAbsent(uuid, false);
 
-           
+
                 player.sendMessage(Text.literal("§c[Narrador IA] §fEdson Calotas entrou no mundo. Prepare-se para ser esculachado!"), false);
                 player.sendMessage(Text.literal("§e[Aviso] §fSe você usava a versão anterior, é OBRIGATÓRIO atualizar a pasta 'server'. Baixe os arquivos novos no GitHub! (O Link está na descrição do mod)"), false);
                 player.sendMessage(Text.literal("§b[Suporte] §fQuer uma ajuda direta? Fale comigo através do meu server no Discord! ")
                         .append(Text.literal("§b§n[CLIQUE AQUI PARA ENTRAR]")
-                        .styled(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://discord.gg/G6tNE5bQbH")))), false);
+                                .styled(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://discord.gg/G6tNE5bQbH")))), false);
                 addActionAndCheckFlush("BOAS-VINDAS", "Entrou no mundo", player, false);
             }
         });
@@ -154,7 +154,7 @@ public class GameEventListener {
 
     private static void registerChatAndAdvancements() {
         ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) -> {
-            if (sender != null) addActionAndCheckFlush("Chat", message.getContent().getString(), sender, false); 
+            if (sender != null) addActionAndCheckFlush("Chat", message.getContent().getString(), sender, false);
         });
 
         ServerMessageEvents.GAME_MESSAGE.register((server, message, overlay) -> {
@@ -168,7 +168,7 @@ public class GameEventListener {
     }
 
     private static void registerInteractionEvents() {
-    PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
+        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             if (!world.isClient() && player instanceof ServerPlayerEntity serverPlayer) {
                 String blockName = state.getBlock().getName().getString();
                 int yLevel = pos.getY();
@@ -184,8 +184,7 @@ public class GameEventListener {
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (!world.isClient() && hand == Hand.MAIN_HAND && player instanceof ServerPlayerEntity serverPlayer) {
-                
-                // Sensores de Blocos Utilitários (Baús, Bigorna, Ferraria)
+
                 Block block = world.getBlockState(hitResult.getBlockPos()).getBlock();
                 if (block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST || block == Blocks.BARREL) {
                     addActionAndCheckFlush("Opened", "Baú/Barril", serverPlayer, false);
@@ -195,7 +194,6 @@ public class GameEventListener {
                     addActionAndCheckFlush("Used Station", "Mesa de Ferraria", serverPlayer, false);
                 }
 
-                // Colocação de Blocos Padrão
                 ItemStack stack = player.getStackInHand(hand);
                 if (!stack.isEmpty() && stack.getItem() instanceof BlockItem) {
                     addActionAndCheckFlush("Placed", stack.getItem().getName().getString(), serverPlayer, false);
@@ -209,12 +207,10 @@ public class GameEventListener {
                 ItemStack stack = player.getStackInHand(hand);
                 if (!stack.isEmpty()) {
                     long now = System.currentTimeMillis();
-                    
-                    // Sensor de Poções
+
                     if (stack.getItem() instanceof PotionItem) {
                         addActionAndCheckFlush("Consumed", "Poção (" + stack.getName().getString() + ")", serverPlayer, false);
-                    } 
-                    // Sensor de Comida com Cooldown Interno
+                    }
                     else if (stack.getItem().getComponents().contains(net.minecraft.component.DataComponentTypes.FOOD)) {
                         long lastEat = lastEatTimes.getOrDefault(player.getUuid(), 0L);
                         if (now - lastEat >= 2000L) {
@@ -254,30 +250,30 @@ public class GameEventListener {
         });
     }
 
-    //     // ========================================================================
+    // ========================================================================
     // MOTOR LÓGICO E CLASSIFICAÇÃO
     // ========================================================================
-   private static int determineTier(String actionType) {
+    private static int determineTier(String actionType) {
         return switch (actionType) {
-            case "Morreu", "Chat", "Achievement", "Dimension Changed", "BOAS-VINDAS", "Deep Dark" -> 1; 
-            
-            // "Minerando" adicionado no Tier de Progresso (Tier 2)
-            case "Crafted", "Slept", "Took Damage", "Woke Up", "Ociosidade", "Tool Broke", "Tamed", "Breeding", "Traded", "Deep Dark Exit", "Pescou", "Used Station", "Encantou", "Minerando" -> 2; 
-            
-            default -> 3; // "Broke" de pedra, terra e lixo continua caindo aqui (Tier 3)
+            case "Morreu", "Chat", "Achievement", "Dimension Changed", "BOAS-VINDAS", "Deep Dark" -> 1;
+
+            case "Crafted", "Slept", "Took Damage", "Woke Up", "Ociosidade", "Tool Broke", "Tamed", "Breeding", "Traded", "Comércio", "Deep Dark Exit", "Pescou", "Used Station", "Encantou", "Minerando" -> 2;
+            default -> 3;
         };
     }
 
     public static void addActionAndCheckFlush(String actionType, String target, ServerPlayerEntity player, boolean isCritical) {
         if (player.isCreative() || player.isSpectator()) return;
-        
+
+
+        if (target != null && (target.toLowerCase().contains("ar") || target.toLowerCase().contains("air"))) {
+            return;
+        }
+
         UUID uuid = player.getUuid();
-        int eventTier = determineTier(actionType); 
+        int eventTier = determineTier(actionType);
         long now = System.currentTimeMillis();
 
-        // ---------------------------------------------------------
-        // BUFFER ESPECIAL ANTI-PERDA (BLOQUEIO POR NARRADOR ATIVO)
-        // ---------------------------------------------------------
         if (HttpAssistant.isNarrating()) {
             if (eventTier == 1) {
                 List<ActionEntry> tempBuffer = tempTier1Buffers.get(uuid);
@@ -288,18 +284,14 @@ public class GameEventListener {
                     }
                 }
             }
-            return; // Ignora e descarta silenciosamente eventos Tier 2 e 3
+            return;
         }
 
-        // ---------------------------------------------------------
-        // FLUXO NORMAL
-        // ---------------------------------------------------------
         List<ActionEntry> tempBuffer = tempTier1Buffers.get(uuid);
         List<ActionEntry> buffer = playerBuffers.get(uuid);
 
         if (buffer != null) {
             synchronized (buffer) {
-                // Despeja eventos críticos retidos no buffer principal
                 if (tempBuffer != null && !tempBuffer.isEmpty()) {
                     synchronized (tempBuffer) {
                         buffer.addAll(tempBuffer);
@@ -308,7 +300,6 @@ public class GameEventListener {
                     }
                 }
 
-                // Compressão de Dados Semelhantes
                 boolean isDuplicate = false;
                 if (!buffer.isEmpty()) {
                     ActionEntry lastEntry = buffer.get(buffer.size() - 1);
@@ -322,11 +313,10 @@ public class GameEventListener {
                     }
                 }
 
-                // Adição de Novos Eventos
                 if (!isDuplicate) {
                     if (buffer.size() >= MAX_BUFFER_SIZE) {
                         int highestTierIndex = -1;
-                        int highestTierValue = -1; 
+                        int highestTierValue = -1;
                         for (int i = 0; i < buffer.size(); i++) {
                             if (buffer.get(i).getTier() > highestTierValue) {
                                 highestTierValue = buffer.get(i).getTier();
@@ -375,8 +365,7 @@ public class GameEventListener {
 
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 UUID uuid = player.getUuid();
-                
-                // Sensores de Ambiente Ativos
+
                 if (isOneSecondTick && !player.isCreative() && !player.isSpectator()) {
                     player.getWorld().getBiome(player.getBlockPos()).getKey().ifPresent(biomeKey -> {
                         String biomeName = biomeKey.getValue().getPath();
@@ -402,31 +391,27 @@ public class GameEventListener {
                     }
                 }
 
-                // Easter Egg Musical
                 Long joinTime = joinTimes.get(uuid);
                 Boolean played = musicPlayed.getOrDefault(uuid, true);
                 if (joinTime != null && !played && now - joinTime >= EASTER_EGG_TIME_MS) {
-                    musicPlayed.put(uuid, true); 
+                    musicPlayed.put(uuid, true);
                     playEdsonHitSong();
                 }
-                
-                // Lógica de Disparo e Ociosidade
+
                 List<ActionEntry> buffer = playerBuffers.get(uuid);
                 if (buffer != null) {
                     long lastFlush = lastFlushTimes.getOrDefault(uuid, now);
                     long timeElapsed = now - lastFlush;
-                    
-                   synchronized (buffer) {
+
+                    synchronized (buffer) {
                         boolean hasTier1or2 = buffer.stream().anyMatch(e -> e.getTier() <= 2);
                         boolean hasMinimumVolume = buffer.size() >= 20;
 
-                        // 1. O relógio bateu os 90 segundos (FLUSH_INTERVAL_MS)?
                         if (timeElapsed >= FLUSH_INTERVAL_MS) {
-                            
-                            // 2. Regra de Ouro: Precisa de Volume MÍNIMO (20+) E Relevância (Tier 1 ou 2)
+
                             if (hasMinimumVolume && hasTier1or2) {
                                 if (HttpAssistant.isNarrating()) {
-                                    if (isOneSecondTick) { 
+                                    if (isOneSecondTick) {
                                         NarradorIAMod.LOGGER.info("[CICLO INTERNO] ⏳ Retendo disparo: Edson esta falando.");
                                     }
                                 } else {
@@ -435,11 +420,9 @@ public class GameEventListener {
                                     NarradorIAMod.LOGGER.info("==================================================");
                                     prepareAndFlushPayload(player, buffer, now);
                                 }
-                            } 
-                            // 3. Extensão estourou (Chegou aos 180 segundos - IDLE_TIMEOUT_MS)
+                            }
                             else if (timeElapsed >= IDLE_TIMEOUT_MS) {
                                 if (!hasTier1or2) {
-                                    // Panguão autêntico: 3 minutos sem Tier 1 ou 2
                                     if (!HttpAssistant.isNarrating()) {
                                         long lastIdle = lastIdleTimes.getOrDefault(uuid, 0L);
                                         if (now - lastIdle >= IDLE_COOLDOWN_MS) {
@@ -451,8 +434,6 @@ public class GameEventListener {
                                         }
                                     }
                                 } else {
-                                    // Edge case: O cara fez algo Tier 2, mas joga TÃO devagar que não fez 20 coisas em 3 minutos.
-                                    // Manda o que tem pra não perder a fofoca do Tier 2 no vazio.
                                     if (!HttpAssistant.isNarrating()) {
                                         NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO FORÇADO (180s - Baixo volume, mas com relevância)");
                                         prepareAndFlushPayload(player, buffer, now);
@@ -463,15 +444,13 @@ public class GameEventListener {
                     }
                 }
 
-                // Lógica de Long Term Session
                 List<ActionEntry> sessionBuffer = sessionBuffers.get(uuid);
                 if (sessionBuffer != null && !sessionBuffer.isEmpty()) {
                     long lastSessionFlush = lastSessionFlushTimes.getOrDefault(uuid, now);
                     if (now - lastSessionFlush >= SESSION_INTERVAL_MS) {
-                        synchronized (sessionBuffer) {
-                            if (!sessionBuffer.isEmpty() && !HttpAssistant.isNarrating()) {
-                                prepareAndFlushSessionPayload(player, sessionBuffer, now);
-                            }
+                        // Anti-Race Condition garantido com cópia segura antes da execução assíncrona
+                        if (!HttpAssistant.isNarrating()) {
+                            prepareAndFlushSessionPayload(player, sessionBuffer, now);
                         }
                     }
                 }
@@ -503,12 +482,18 @@ public class GameEventListener {
 
     private static void prepareAndFlushSessionPayload(ServerPlayerEntity player, List<ActionEntry> sessionBuffer, long flushTime) {
         UUID uuid = player.getUuid();
-        List<ActionEntry> snapshot = new ArrayList<>(sessionBuffer);
-        sessionBuffer.clear();
+        List<ActionEntry> snapshot;
+
+        // Tranca o buffer principal da sessão, copia rápido e reseta tudo
+        synchronized (sessionBuffer) {
+            snapshot = new ArrayList<>(sessionBuffer);
+            sessionBuffer.clear();
+        }
+
         lastSessionFlushTimes.put(uuid, flushTime);
 
         CompletableFuture.runAsync(() -> {
-            StringBuilder summary = new StringBuilder("RESUMO DOS ÚLTIMOS 10 MINUTOS:\n");
+            StringBuilder summary = new StringBuilder("RESUMO DOS ÚLTIMOS 20 MINUTOS:\n"); // ATUALIZADO: Text do prompt
             boolean hasMeaningfulData = false;
 
             for (ActionEntry entry : snapshot) {
@@ -590,7 +575,7 @@ public class GameEventListener {
     private static class ActionEntry {
         private final String actionType;
         private final String target;
-        private final int tier; 
+        private final int tier;
         private int count;
         private long lastTimestamp;
 
@@ -604,7 +589,7 @@ public class GameEventListener {
 
         public String getActionType() { return actionType; }
         public String getTarget() { return target; }
-        public int getTier() { return tier; } 
+        public int getTier() { return tier; }
         public int getCount() { return count; }
         public long getLastTimestamp() { return lastTimestamp; }
         public void incrementCount() { this.count++; }

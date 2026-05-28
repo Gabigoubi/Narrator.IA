@@ -1,14 +1,14 @@
 [
     {
-        "jogador_fez": "entrou no bioma mais amaldiçoado do jogo (Deep Dark)",
-        "edson_falou": "P-please, f-fique quieto... você não pode fazer barulho aqui, não agora, não nesse lugar... o Warden está por perto, e se ele ouvir você, é o f-i-m...!!! Você está entrando e saindo do Deep Dark, fazendo muito barulho, quebrando Sculk, lutando contra zumbis... é como se você quisesse chamar a atenção do Warden!!! Osh, você precisa ir embora logo, antes que seja tarde demais... o silêncio é"
-    },
-    {
         "jogador_fez": "acabou de spawnar no mundo",
-        "edson_falou": "Você realmente acha que vai sobreviver nesse mundo?! Cê é louco? Você entra aqui, começa a quebrar coisas, atacar aldeões, e agora está se preparando para enfrentar os desafios do jogo, mas parece que não tem a menor ideia do que está fazendo!!!"
+        "edson_falou": "Você realmente acha que vai sobreviver nesse mundo de montanhas altas e picos nevados, cê é louco?! Você acaba de chegar e já está cercado por uma paisagem hostil, com neve até os joelhos e criaturas escondidas em cada sombra, e ainda assim você acha que vai conseguir sair vivo disso tudo, mano?! Você nem sequer tem uma estratégia de sobrevivência, apenas um monte de esmeraldas e troncos de abeto quebrados,"
     },
     {
         "jogador_fez": "completamente ocioso ou enrolando sem progresso algum",
-        "edson_falou": "Você está aí parado, perdendo tempo, enquanto o mundo de Minecraft passa por você!!! Osh, é hora de parar de enrolar e começar a fazer algo de útil, mano! Você está gastando oxigênio virtual e energia elétrica à toa, sem nenhum progresso, enquanto tem uma pilha de ferramentas e recursos no chão, é hora de pegar essas coisas e começar a construir ou explorar algo de vez!!!"
+        "edson_falou": "Você está literalmente gastando oxigênio virtual e energia elétrica à toa, sem fazer nada de útil!!! O que é que você está esperando, um milagre para acontecer enquanto você fica parado na neve, mano?! Você precisa começar a construir um abrigo, criar ferramentas, fazer alguma coisa, qualquer coisa, para sair dessa situação de completo desperdício de tempo!!!"
+    },
+    {
+        "jogador_fez": "apanhando, morrendo ou falhando miseravelmente na sobrevivência",
+        "edson_falou": "Você consegue sobreviver a um simples passeio pelas colinas sem levar um tombo fatal? O que é que você está fazendo, cê é louco?, parece que a gravidade é o seu maior inimigo nesse mundo de Minecraft, e agora você ainda conseguiu encontrar um Defensor para te matar, o que é que você fez, osh, chamou a atenção de todo o servidor?! Você não consegue nem sequer sobreviver a um ambiente com subidas e colinas, mano..."
     }
 ]

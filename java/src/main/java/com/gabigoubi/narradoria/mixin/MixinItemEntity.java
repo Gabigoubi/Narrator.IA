@@ -21,9 +21,12 @@ public abstract class MixinItemEntity {
     private void onPickup(PlayerEntity player, CallbackInfo ci) {
         if (!player.getWorld().isClient() && player instanceof ServerPlayerEntity serverPlayer) {
             ItemStack stack = this.getStack();
-            String itemName = stack.getItem().getName().getString();
-            // Envia para o nosso Buffer Inteligente
-            GameEventListener.addActionAndCheckFlush("Picked Up", itemName, serverPlayer, false);
+
+            // FILTRO DE VENTO: Impede registrar "Air" ou "Ar"
+            if (!stack.isEmpty() && !stack.getItem().getName().getString().toLowerCase().contains("air")) {
+                String itemName = stack.getItem().getName().getString();
+                GameEventListener.addActionAndCheckFlush("Picked Up", itemName, serverPlayer, false);
+            }
         }
     }
 }

@@ -11,7 +11,8 @@
     "MixinAnimalEntity",
     "MixinVillagerEntity",
     "MixinFishingBobberEntity",
-    "MixinEnchantmentScreenHandler"
+    "MixinEnchantmentScreenHandler",
+    "MixinTradeOutputSlot"
   ],
   "injectors": {
     "defaultRequire": 1
