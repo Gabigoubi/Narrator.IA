@@ -20,13 +20,17 @@ public abstract class MixinPlayerEntity {
 
         if (!stack.isEmpty() && self instanceof ServerPlayerEntity serverPlayer && !serverPlayer.getWorld().isClient()) {
 
+            // 1. Limpeza e Filtro Anti-Ar Preciso (O mesmo padrão do BUG-002)
+            String itemName = stack.getItem().getName().getString();
+            String t = itemName.trim();
+            if (t.isEmpty() || t.equalsIgnoreCase("Ar") || t.equalsIgnoreCase("Air") || t.equalsIgnoreCase("0x Ar") || t.equalsIgnoreCase("0x Air")) {
+                return; // Aborta silenciosamente
+            }
 
-            if (serverPlayer.isAlive() && serverPlayer.getHealth() > 0.0f &&
-                    !stack.getItem().getName().getString().toLowerCase().contains("air")) {
-
-                String itemName = stack.getItem().getName().getString();
+            // 2. Guarda de Estado Blindada (State Guard)
+            // Verifica se o jogador não foi removido do servidor, se está vivo e garante que a flag de entidade morta não foi levantada.
+            if (!serverPlayer.isRemoved() && serverPlayer.isAlive() && !serverPlayer.isDead() && serverPlayer.getHealth() > 0.0f) {
                 GameEventListener.addActionAndCheckFlush("Dropped", itemName, serverPlayer, false);
             }
         }
     }
-}
