@@ -48,6 +48,8 @@ class PlayerTelemetry(BaseModel):
     critical_states: list[str]
     hotbar: list[str] | None = None
     recent_actions: list[str]
+    y_level: int | None = None         
+    is_session_summary: bool = False  
 
 # ========================================================================
 # ROTINAS DE PROTEÇÃO E INICIALIZAÇÃO
@@ -110,8 +112,13 @@ def generate_narration(telemetry: PlayerTelemetry):
     try:
         log_step(1, "Pacote de telemetria recebido do Java.")
 
-        # 1. Regente Analisa e Pontua (ÉPICO 4)
-        direcao = analisar_telemetria(telemetry.recent_actions, telemetry.critical_states)
+        # 1. Regente Analisa e Pontua (Com novos dados de Fronteira Seca)
+        direcao = analisar_telemetria(
+            telemetry.recent_actions, 
+            telemetry.critical_states,
+            telemetry.y_level,
+            telemetry.is_session_summary
+        )
         log_step(2, f"Roteiro escrito pelo Regente (Cena determinada: {direcao['scene_type']}).")
 
         # 2. Monta o Prompt Final
