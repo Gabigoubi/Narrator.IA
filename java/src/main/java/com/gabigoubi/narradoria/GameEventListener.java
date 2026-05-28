@@ -485,7 +485,7 @@ public class GameEventListener {
         CompletableFuture.runAsync(() -> buildAndSendJson(snapshot, health, hunger, yLevel, currentHotbar));
     }
 
-    private static void prepareAndFlushSessionPayload(ServerPlayerEntity player, List<ActionEntry> sessionBuffer, long flushTime) {
+  private static void prepareAndFlushSessionPayload(ServerPlayerEntity player, List<ActionEntry> sessionBuffer, long flushTime) {
         UUID uuid = player.getUuid();
         List<ActionEntry> snapshot;
 
@@ -498,12 +498,12 @@ public class GameEventListener {
         lastSessionFlushTimes.put(uuid, flushTime);
 
         CompletableFuture.runAsync(() -> {
-            StringBuilder summary = new StringBuilder("RESUMO DOS ÚLTIMOS 20 MINUTOS:\n"); // ATUALIZADO: Text do prompt
             boolean hasMeaningfulData = false;
+            JsonArray actionsArray = new JsonArray();
 
             for (ActionEntry entry : snapshot) {
                 if (entry.getCount() >= 10 || entry.getActionType().equals("Morreu") || entry.getActionType().equals("Achievement")) {
-                    summary.append(entry.formatOutput()).append("\n");
+                    actionsArray.add(entry.formatOutput());
                     hasMeaningfulData = true;
                 }
             }
@@ -512,12 +512,11 @@ public class GameEventListener {
 
             JsonObject payload = new JsonObject();
             payload.addProperty("voice_model", VOICE_MODEL);
-            JsonArray actionsArray = new JsonArray();
-            actionsArray.add(summary.toString());
+            
+            // FLAG ARQUITETURAL: Avisa o Python que isso é um resumo, sem usar linguagem natural
+            payload.addProperty("is_session_summary", true);
+            
             payload.add("recent_actions", actionsArray);
-            JsonArray statesArray = new JsonArray();
-            statesArray.add("Atenção: Faça uma avaliação geral do progresso (ou falta dele) baseada neste resumo de longo prazo.");
-            payload.add("critical_states", statesArray);
 
             HttpAssistant.sendStructuredTelemetry(payload.toString());
         });
@@ -526,18 +525,13 @@ public class GameEventListener {
     private static void buildAndSendJson(List<ActionEntry> snapshot, float health, int hunger, int yLevel, List<String> hotbar) {
         JsonObject payload = new JsonObject();
         payload.addProperty("voice_model", VOICE_MODEL);
+        
+        // DADO CRU: Envia apenas o número. O Python que se vire para interpretar.
+        payload.addProperty("y_level", yLevel);
 
         JsonArray statesArray = new JsonArray();
         if (health <= CRITICAL_HEALTH_THRESHOLD) statesArray.add("Risco de Morte (Vida Crítica): " + (int) health + " de vida");
         if (hunger <= CRITICAL_HUNGER_THRESHOLD) statesArray.add("Fome Extrema: " + hunger + "/20");
-
-        if (yLevel >= 120) statesArray.add("Local: Montanhas altas e picos nevados");
-        else if (yLevel >= 80) statesArray.add("Local: Platôs, colinas e subidas");
-        else if (yLevel >= 55) statesArray.add("Local: Nível do mar, planícies e terra firme");
-        else if (yLevel >= 1) statesArray.add("Local: Subsolo e cavernas comuns");
-        else if (yLevel == 0) statesArray.add("Local: Transição para ardósia profunda");
-        else if (yLevel >= -63) statesArray.add("Local: Cavernas profundas (Deepslate)");
-        else statesArray.add("Local: Fim do mundo (Bedrock)");
 
         payload.add("critical_states", statesArray);
 
