@@ -45,7 +45,7 @@ public class GameEventListener {
     // ========================================================================
     private static final String VOICE_MODEL = "pm_alex";
     private static final int MAX_BUFFER_SIZE = 30;
-    private static final long FLUSH_INTERVAL_MS = 90000L;
+    private static final long FLUSH_INTERVAL_MS = 60000L;
     private static final long IDLE_TIMEOUT_MS = 180000L;
     private static final long IDLE_COOLDOWN_MS = 600000L;
     private static final long SESSION_INTERVAL_MS = 1200000L; // ATUALIZADO: 20 Minutos
@@ -421,7 +421,7 @@ public class GameEventListener {
                                     }
                                 } else {
                                     NarradorIAMod.LOGGER.info("==================================================");
-                                    NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO PERFEITO (90s + 20 Eventos + Tier 1/2)");
+                                    NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO PERFEITO (60s + 20 Eventos + Tier 1/2)");
                                     NarradorIAMod.LOGGER.info("==================================================");
                                     prepareAndFlushPayload(player, buffer, now);
                                 }
