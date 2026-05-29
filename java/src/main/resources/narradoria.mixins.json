@@ -5,7 +5,14 @@
   "mixins": [
     "MixinCraftingResultSlot",
     "MixinPlayerEntity",
-    "MixinItemEntity"
+    "MixinItemEntity",
+    "MixinLivingEntity",
+    "MixinTameableEntity",
+    "MixinAnimalEntity",
+    "MixinVillagerEntity",
+    "MixinFishingBobberEntity",
+    "MixinEnchantmentScreenHandler",
+    "MixinTradeOutputSlot"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -66,4 +66,14 @@ public class HttpAssistant {
         isNarrating.set(false);
         System.out.println("[HttpAssistant] [UNLOCK] System released for new telemetry events.");
     }
+
+    /**
+     * Permite que outras classes (como o GameEventListener) consultem o status atual.
+     */
+    public static boolean isNarrating() {
+        return isNarrating.get();
+    }
+
+
+
 }
