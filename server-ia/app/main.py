@@ -83,7 +83,7 @@ print("=" * 50 + "\n")
 
 app = FastAPI()
 
-edson_memory = SlidingMemory(max_history=3)
+edson_memory = SlidingMemory(max_history=2)
 
 # ========================================================================
 # ROTINAS DE OBSERVABILIDADE E LOGS (ÉPICO 5)
@@ -166,14 +166,14 @@ def generate_narration(telemetry: PlayerTelemetry):
 def fetch_ai_response(system_prompt: str, user_prompt: str) -> str:
     if IS_DEV_MODE:
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        # AJUSTE: max_tokens alterado de 120 para 138
-        payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "temperature": 0.75, "max_tokens": 138}
+        # AJUSTE v1.4.1: max_tokens aumentado para 200 para comportar 3-4 frases
+        payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "temperature": 0.75, "max_tokens": 200}
         response = requests.post(GROQ_API_URL, json=payload, headers=headers, timeout=30)
         response.raise_for_status()
         ai_text = response.json()["choices"][0]["message"]["content"].strip()
     else:
-        # AJUSTE: num_predict alterado de 138 e endpoint Ollama
-        payload = {"model": DEFAULT_MODEL, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "stream": False, "options": {"temperature": 0.8, "top_p": 0.9, "num_predict": 138}}
+        # AJUSTE v1.4.1: num_predict aumentado para 200
+        payload = {"model": DEFAULT_MODEL, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "stream": False, "options": {"temperature": 0.8, "top_p": 0.9, "num_predict": 200}}
         response = requests.post(OLLAMA_GENERATE_URL, json=payload, timeout=TIMEOUT_OLLAMA)
         response.raise_for_status()
         ai_text = response.json().get("response", "").strip()
