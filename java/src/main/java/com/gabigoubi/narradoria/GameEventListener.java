@@ -112,7 +112,40 @@ public class GameEventListener {
                 player.sendMessage(Text.literal("§b[Suporte] §fQuer uma ajuda direta? Fale comigo através do meu server no Discord! ")
                         .append(Text.literal("§b§n[CLIQUE AQUI PARA ENTRAR]")
                                 .styled(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://discord.gg/G6tNE5bQbH")))), false);
-                addActionAndCheckFlush("BOAS-VINDAS", "Entrou no mundo", player, false);
+
+                // EVENTO DE BOAS-VINDAS ISOLADO (10s de delay)
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        Thread.sleep(10000); //
+                    } catch (InterruptedException e) {
+                        return;
+                    }
+
+        
+                    server.execute(() -> {
+                        ServerPlayerEntity onlinePlayer = server.getPlayerManager().getPlayer(uuid);
+                        if (onlinePlayer == null) return; 
+
+                        List<ActionEntry> welcomeSnapshot = new ArrayList<>();
+                        welcomeSnapshot.add(new ActionEntry("BOAS-VINDAS", "Entrou no mundo", 1, System.currentTimeMillis()));
+
+                        List<String> currentHotbar = new ArrayList<>();
+                        for (int i = 0; i < 9; i++) {
+                            ItemStack stack = onlinePlayer.getInventory().getStack(i);
+                            currentHotbar.add(stack.isEmpty() ? "Empty" : stack.getItem().getName().getString());
+                        }
+
+                        NarradorIAMod.LOGGER.info("[Narrador IA] Disparando evento de Boas-Vindas isolado.");
+                        
+                        CompletableFuture.runAsync(() -> buildAndSendJson(
+                                welcomeSnapshot, 
+                                onlinePlayer.getHealth(), 
+                                onlinePlayer.getHungerManager().getFoodLevel(), 
+                                (int) onlinePlayer.getY(), 
+                                currentHotbar
+                        ));
+                    });
+                });
             }
         });
 
