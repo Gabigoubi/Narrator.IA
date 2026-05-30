@@ -3,7 +3,7 @@ plugins {
     id 'maven-publish'
 }
 
-version = 'v1.4'
+version = 'v1.4.1'
 group = 'com.gabigoubi'
 
 base {
