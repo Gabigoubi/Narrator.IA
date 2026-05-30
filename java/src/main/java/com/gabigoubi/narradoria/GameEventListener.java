@@ -44,14 +44,14 @@ public class GameEventListener {
     // CONSTANTES E CONFIGURAÇÕES DE TEMPO
     // ========================================================================
     private static final String VOICE_MODEL = "pm_alex";
-    private static final int MAX_BUFFER_SIZE = 30;
-    private static final long FLUSH_INTERVAL_MS = 60000L;
+    private static final int MAX_BUFFER_SIZE = 20;
+    private static final long FLUSH_INTERVAL_MS = 30000L;
     private static final long IDLE_TIMEOUT_MS = 180000L;
     private static final long IDLE_COOLDOWN_MS = 600000L;
-    private static final long SESSION_INTERVAL_MS = 1200000L; // ATUALIZADO: 20 Minutos
+    private static final long SESSION_INTERVAL_MS = 1200000L;
     private static final float CRITICAL_HEALTH_THRESHOLD = 4.0f;
     private static final int CRITICAL_HUNGER_THRESHOLD = 4;
-    private static final long EASTER_EGG_TIME_MS = 900000L;
+    private static final long EASTER_EGG_TIME_MS = 1800000L;
 
     // ========================================================================
     // MAPAS DE ESTADO (THREAD-SAFE)
@@ -269,8 +269,11 @@ public class GameEventListener {
 
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             if (entity instanceof ServerPlayerEntity serverPlayer) {
+                boolean isCombat = source.getAttacker() instanceof net.minecraft.entity.mob.Monster;
                 String attacker = source.getAttacker() != null ? source.getAttacker().getName().getString() : "Environment";
-                addActionAndCheckFlush("Took Damage", String.format("%s (Source: %s)", source.getName(), attacker), serverPlayer, false);
+                String actionTag = isCombat ? "Took Damage - Combat" : "Took Damage - Environment";
+
+                addActionAndCheckFlush(actionTag, String.format("%s (Source: %s)", source.getName(), attacker), serverPlayer, false);
             }
             return true;
         });
@@ -288,9 +291,9 @@ public class GameEventListener {
     // ========================================================================
     private static int determineTier(String actionType) {
         return switch (actionType) {
-            case "Morreu", "Chat", "Achievement", "Dimension Changed", "BOAS-VINDAS", "Deep Dark" -> 1;
+            case "Morreu", "Chat", "Achievement", "Dimension Changed", "BOAS-VINDAS", "Slept", "Woke Up", "Deep Dark" -> 1;
 
-            case "Crafted", "Slept", "Took Damage", "Woke Up", "Ociosidade", "Tool Broke", "Tamed", "Breeding", "Traded", "Comércio", "Deep Dark Exit", "Pescou", "Used Station", "Encantou", "Minerando" -> 2;
+            case "Crafted", "Took Damage", "Ociosidade", "Tool Broke", "Tamed", "Breeding", "Traded", "Comércio", "Deep Dark Exit", "Pescou", "Used Station", "Encantou", "Minerando" -> 2;
             default -> 3;
         };
     }
@@ -339,16 +342,27 @@ public class GameEventListener {
                 }
 
                 boolean isDuplicate = false;
-                if (!buffer.isEmpty()) {
-                    ActionEntry lastEntry = buffer.get(buffer.size() - 1);
-                    if (lastEntry.getActionType().equals(actionType) && lastEntry.getTarget().equals(target)) {
-                        if (now - lastEntry.getLastTimestamp() >= 250L) {
-                            if (lastEntry.getCount() < 30) lastEntry.incrementCount();
-                            lastEntry.updateTimestamp(now);
+                int foundIndex = -1;
+
+                // Varre o buffer inteiro para agrupar itens iguais, mesmo que separados por outras ações
+                for (int i = 0; i < buffer.size(); i++) {
+                    ActionEntry entry = buffer.get(i);
+                    if (entry.getActionType().equals(actionType) && entry.getTarget().equals(target)) {
+                        if (now - entry.getLastTimestamp() >= 250L) {
+                            if (entry.getCount() < 999) entry.incrementCount(); // Teto ampliado para 999
+                            entry.updateTimestamp(now);
                             addToSessionBuffer(uuid, actionType, target, eventTier, now);
                         }
                         isDuplicate = true;
+                        foundIndex = i;
+                        break;
                     }
+                }
+
+                // Move o item agrupado para o final da fila para manter a coerência cronológica do que ele acabou de fazer
+                if (foundIndex != -1 && foundIndex != buffer.size() - 1) {
+                    ActionEntry movedEntry = buffer.remove(foundIndex);
+                    buffer.add(movedEntry);
                 }
 
                 if (!isDuplicate) {
@@ -443,7 +457,7 @@ public class GameEventListener {
 
                     synchronized (buffer) {
                         boolean hasTier1or2 = buffer.stream().anyMatch(e -> e.getTier() <= 2);
-                        boolean hasMinimumVolume = buffer.size() >= 20;
+                        boolean hasMinimumVolume = buffer.size() >= 15;
 
                         if (timeElapsed >= FLUSH_INTERVAL_MS) {
 
@@ -454,7 +468,7 @@ public class GameEventListener {
                                     }
                                 } else {
                                     NarradorIAMod.LOGGER.info("==================================================");
-                                    NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO PERFEITO (60s + 20 Eventos + Tier 1/2)");
+                                    NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO PERFEITO (30s + 15 Eventos + Tier 1/2)");
                                     NarradorIAMod.LOGGER.info("==================================================");
                                     prepareAndFlushPayload(player, buffer, now);
                                 }
@@ -473,7 +487,7 @@ public class GameEventListener {
                                     }
                                 } else {
                                     if (!HttpAssistant.isNarrating()) {
-                                        NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO FORÇADO (180s - Baixo volume, mas com relevância)");
+                                        NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO FORÇADO (60s - Baixo volume, mas com relevância)");
                                         prepareAndFlushPayload(player, buffer, now);
                                     }
                                 }
@@ -592,7 +606,7 @@ public class GameEventListener {
                 clip.open(audioStream);
                 if (clip.isControlSupported(javax.sound.sampled.FloatControl.Type.MASTER_GAIN)) {
                     javax.sound.sampled.FloatControl volume = (javax.sound.sampled.FloatControl) clip.getControl(javax.sound.sampled.FloatControl.Type.MASTER_GAIN);
-                    volume.setValue(2.0f);
+                    volume.setValue(-12.0f); // Valor negativo reduz o volume (em decibéis). Se quiser mais baixo ainda, tente -18.0f
                 }
                 clip.start();
             } catch (Exception e) {
@@ -629,7 +643,7 @@ public class GameEventListener {
 
         public String formatOutput() {
             return count > 1
-                    ? String.format("[Tier %d] [%s] %dx %s", tier, actionType, count, target)
+                    ? String.format("[Tier %d] [%s] %s %d vezes", tier, actionType, target, count)
                     : String.format("[Tier %d] [%s] %s", tier, actionType, target);
         }
     }

@@ -45,11 +45,11 @@ else:
 # ========================================================================
 class PlayerTelemetry(BaseModel):
     voice_model: str
-    critical_states: list[str]
+    critical_states: list[str] = []
     hotbar: list[str] | None = None
     recent_actions: list[str]
     y_level: int | None = None         
-    is_session_summary: bool = False  
+    is_session_summary: bool = False
 
 # ========================================================================
 # ROTINAS DE PROTEÇÃO E INICIALIZAÇÃO
@@ -83,7 +83,7 @@ print("=" * 50 + "\n")
 
 app = FastAPI()
 
-edson_memory = SlidingMemory(max_history=2)
+edson_memory = SlidingMemory(max_history=1)
 
 # ========================================================================
 # ROTINAS DE OBSERVABILIDADE E LOGS (ÉPICO 5)
@@ -120,6 +120,14 @@ def generate_narration(telemetry: PlayerTelemetry):
             telemetry.y_level,
             telemetry.is_session_summary
         )
+        
+        # Garante que a memória inicie zerada a cada nova sessão no jogo
+        global edson_memory
+        if direcao['scene_type'] == "player_login":
+            edson_memory = SlidingMemory(max_history=1)
+            if IS_DEV_MODE:
+                print("\n🧠 [SISTEMA] Memória de contexto apagada para a nova sessão.")
+
         log_step(2, f"Roteiro escrito pelo Regente (Cena determinada: {direcao['scene_type']}).")
 
         # 2. Monta o Prompt Final
@@ -166,14 +174,14 @@ def generate_narration(telemetry: PlayerTelemetry):
 def fetch_ai_response(system_prompt: str, user_prompt: str) -> str:
     if IS_DEV_MODE:
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        # AJUSTE v1.4.1: max_tokens aumentado para 200 para comportar 3-4 frases
-        payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "temperature": 0.75, "max_tokens": 200}
+        # AJUSTE v1.5: max_tokens aumentado para 350 para evitar cortes em respostas de 3-4 frases
+        payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "temperature": 0.8, "max_tokens": 380}
         response = requests.post(GROQ_API_URL, json=payload, headers=headers, timeout=30)
         response.raise_for_status()
         ai_text = response.json()["choices"][0]["message"]["content"].strip()
     else:
-        # AJUSTE v1.4.1: num_predict aumentado para 200
-        payload = {"model": DEFAULT_MODEL, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "stream": False, "options": {"temperature": 0.8, "top_p": 0.9, "num_predict": 200}}
+        # AJUSTE v1.5: num_predict aumentado para 350 para evitar cortes em respostas de 3-4 frases
+        payload = {"model": DEFAULT_MODEL, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "stream": False, "options": {"temperature": 0.8, "top_p": 0.9, "num_predict": 380}}
         response = requests.post(OLLAMA_GENERATE_URL, json=payload, timeout=TIMEOUT_OLLAMA)
         response.raise_for_status()
         ai_text = response.json().get("response", "").strip()
