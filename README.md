@@ -1,4 +1,4 @@
-# 🎙️ Mod Narrador IA para Minecraft (Fabric 1.21.1) - Versão 1.4
+# 🎙️ Mod Narrador IA para Minecraft (Fabric 1.21.1) - Versão 1.4.1
 
 > 🔗 **LINKS OFICIAIS**
 > * **Download do Mod (CurseForge):** [https://www.curseforge.com/minecraft/mc-mods/narrator-ia](https://www.curseforge.com/minecraft/mc-mods/narrator-ia)
@@ -19,20 +19,20 @@
 
 Bem-vindo ao projeto! O Narrador IA evoluiu. O que começou como uma zoeira para me humilhar enquanto jogo, tornou-se um **sistema de direção narrativa** que assiste sua gameplay, interpreta e te esculacha em tempo real.
 
-Conheça o **Edson Calotas**, nosso parceiro virtual da Zona Leste. Ele não é mais um bot que lê logs do sistema; ele é um ator que recebe direção de cena e interpreta sua mediocridade no jogo com sarcasmo e deboche.
+Conheça o **Edson Calotas**, nosso parceiro virtual da Zona Leste. Ele não é mais um bot que lê logs do sistema; ele é um ator que recebe direção de cena e interpreta sua mediocridade no jogo com sarcasmo, deboche e ameaças veladas.
 
 ---
 
-## 🚀 O que mudou na v1.4 (O Despertar do Motor Cognitivo)
+## 🚀 O que mudou na v1.4.1 (A Refinação Cognitiva)
 
-A versão 1.4 consolida a inteligência do sistema, separando completamente a lógica do mod da inteligência do servidor e tornando a narrativa inquebrável.
+A versão 1.4.1 sela a arquitetura inteligente do sistema, otimizando o processamento da IA e garantindo fluidez total na comunicação entre o jogo e o cérebro em Python.
 
-* **Motor Hierárquico de Decisão (Waterfall):** O Edson não se confunde mais com eventos simultâneos. Uma rigorosa árvore de decisão garante prioridade narrativa. Uma morte trágica sempre sobreporá uma conquista, e uma conquista interromperá uma bronca de ociosidade perfeitamente.
-* **Blindagem Cognitiva (Anti-Injection):** A persona do Edson agora está 100% protegida. Se você tentar hackear a IA dando "comandos de sistema" pelo chat, o motor neutraliza a ordem e transforma sua audácia em munição para deboche.
-* **Entropia Narrativa (Anti-Repetição):** O narrador não preenche mais "formulários". Adicionamos aleatoriedade matemática às direções de cena (como em conquistas ou combates) para que o Edson ataque seus erros de ângulos diferentes, acabando com frases repetidas.
-* **Arquitetura de "Fronteira Seca":** O mod em Java agora é um sensor ultraleve e limpo, enviando apenas dados crus (como a coordenada Y real). Toda a tradução para linguagem natural agora é feita de forma escalável pelo cérebro em Python.
-* **Otimização de Voz e Tokens:** Calibramos cirurgicamente o limite de geração para 138 tokens. O "efeito guilhotina" (frases cortadas no meio) foi erradicado, garantindo respostas de 2 a 3 frases agressivas sem travar a engine de áudio.
-* **Limpeza de Sensores:** Blocos fantasmas (como coletar "Ar") e inundações de log após mortes foram completamente eliminados. A telemetria agora é pura verdade.
+* **Isolamento de Concorrência (Boas-Vindas):** O evento de login agora roda em uma *thread* assíncrona blindada de 10 segundos do lado do Java. Zero risco de travamento do servidor durante o carregamento pesado do mundo.
+* **Cura da Diluição de Atenção:** Reduzimos a janela de memória deslizante de 3 para 2 interações. O Edson agora foca estritamente no presente, sem alucinar ou misturar contextos antigos nas piadas novas.
+* **Overhaul de Identidade e Prompt:** Removemos o lixo semântico e injetamos a verdadeira alma do personagem. O Edson usa fonética paulistana pesada ("azideia???", "ooosh") perfeitamente calibrada para o motor de TTS interpretar com naturalidade.
+* **Motor Hierárquico de Decisão (Waterfall):** O Edson não se confunde mais com eventos simultâneos. Uma morte trágica sempre sobreporá uma conquista, e uma conquista interromperá uma bronca de ociosidade perfeitamente.
+* **Expansão de Tokens e Fôlego:** Subimos o limite cirurgicamente para 200 tokens. O Regente agora exige de 3 a 4 frases por cena, permitindo que a IA construa discursos mais elaborados e com pausas dramáticas adequadas.
+* **Blindagem Cognitiva (Anti-Injection):** Se você tentar hackear a IA dando "comandos de sistema" pelo chat, o motor neutraliza a ordem e transforma sua audácia em munição para deboche.
 
 ---
 
@@ -64,9 +64,9 @@ O sistema possui um **Dev Mode** que permite rodar a inteligência via Cloud (Gr
 
 ## 🛡️ Diretrizes Éticas e Segurança
 
-* **Foco na Gameplay:** O Edson Calotas zomba apenas de decisões lógicas dentro do jogo.
+* **Foco na Gameplay:** O Edson Calotas zomba apenas de decisões lógicas dentro do jogo e do seu inventário.
 * **Segurança:** A IA possui travas comportamentais severas e está proibida de ofender o usuário pessoalmente.
-* **Blindagem Passiva:** O sistema envelopa qualquer texto do chat em uma "jaula semântica", permitindo ler o que você escreve sem correr o risco de ser manipulado.
+* **Blindagem Passiva:** O sistema envelopa qualquer texto do chat em uma "jaula semântica", separando estritamente o que é dado técnico do que é comando de instrução, eliminando o risco de sobreposição de regras.
 
 ---
 
@@ -74,11 +74,11 @@ O sistema possui um **Dev Mode** que permite rodar a inteligência via Cloud (Gr
 
 O pipeline utiliza uma "Fronteira Seca" rigorosa para separar a coleta de dados da tomada de decisão:
 
-1. **Java Sensor (Client-side):** Captura telemetria bruta via *Mixins* (sem vazamento de memória) e despacha *Raw Data* (JSON puro, coordenadas inteiras e flags) via HTTP Assíncrono.
-2. **Regente (Python Engine):** Motor lógico de hierarquia Waterfall. Pesa o perigo, tédio e progresso, injeta a tradução semântica do ambiente e gera metadados rigorosos (`scene_type`, `focus_target`, `response_density`).
-3. **Ator (LLM):** Limitado a 138 tokens para impedir "Template Overfitting" e repetição verbal. O prompt garante obediência à estrutura injetada pelo Regente, priorizando cadência e velocidade.
+1. **Java Sensor (Client-side):** Captura telemetria bruta via *Mixins* (sem vazamento de memória) e despacha *Raw Data* (JSON puro, coordenadas inteiras e flags) via HTTP Assíncrono com timers de *debounce* de 60 e 180 segundos.
+2. **Regente (Python Engine):** Motor lógico de hierarquia Waterfall. Pesa o perigo, tédio e progresso, aplica entropia matemática (`random.choice`) para curar padrões repetitivos e gera metadados estruturados (`scene_type`, `focus_target`, `response_density`).
+3. **Ator (LLM):** Limitado a 200 tokens e 2 memórias de interação para impedir "Template Overfitting". O prompt em conformidade crua (Markdown limpo) garante obediência instantânea à cadência exigida sem processar meta-narrativas redundantes.
 
-**Anti-Pattern & Performance:** O sistema utiliza `ConcurrentHashMap` no Java para evitar *thread-blocking* e `FastAPI` no Python para streaming de áudio.
+**Anti-Pattern & Performance:** O sistema utiliza `ConcurrentHashMap` no Java para evitar *thread-blocking* e `FastAPI` no Python para streaming direto de pacotes WAV.
 
 ---
 
