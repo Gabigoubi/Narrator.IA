@@ -21,7 +21,7 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str], y
     in_deep_dark = False
     has_achievement = False
 
-# 1. Triagem Inteligente via Tiers
+    # 1. Triagem Inteligente via Tiers
     for action in recent_actions:
         if "[Tier 3]" in action:
             setup_actions.append(action)
@@ -88,121 +88,113 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str], y
 
     action_focus_str = "\n".join(timeline) if timeline else "O jogador ficou completamente parado, inútil."
 
-   # 4. Motor de Intenção (Regras de Cena em formato Waterfall)
+    # 4. Motor de Intenção (Regras de Cena em formato Waterfall)
 
-    # 🚨 OVERRIDE ABSOLUTO DE SESSÃO: Corta qualquer outra avaliação
+    # 🚨 OVERRIDE ABSOLUTO DE SESSÃO
     if is_session_summary:
         scene_type = "session_evaluation"
         tone = "judgmental_reviewer"
         focus_target = {
-            "behavior": "ouvindo a avaliação geral dos últimos 20 minutos de jogo",
-            "absurdity": "Resumo de 20 minutos de enrolação. Um desempenho medíocre e vergonhoso de se assistir."
+            "behavior": "revendo o que esse cara fez até agora",
+            "absurdity": "20 minutos de escolhas questionáveis e decisões duvidosas"
         }
-        response_density = "direct_judgment (Traga a dura realidade. Cerca de 3 a 4 frases de choque de realidade brutal sobre o tempo perdido)."
+        response_density = "choro ou risada, tanto faz. 2 a 3 frases jogando a real sem dó"
 
     elif in_deep_dark:
         scene_type = "deep_dark_panic"
         tone = "terrified_whisper"
         focus_target = {
-            "behavior": "entrou no bioma mais amaldiçoado do jogo (Deep Dark)",
-            "absurdity": "Fazendo barulho onde o bicho pega de verdade. O Warden vai acordar e a desgraça vai acontecer."
+            "behavior": "entrou no submundo onde não devia estar",
+            "absurdity": "ambiente silencioso demais, sensação de perigo constante, qualquer passo parece erro fatal"
         }
-        response_density = "terrified_whisper (Sussurros apavorados, gagueira. 3 a 4 frases de puro terror e aviso de morte iminente)."
+        response_density = "medo real + quebra de pose. 2 a 3 frases curtas, Edson perde a marra, começa a gaguejar e pede pra sair dali como se tivesse visto algo errado de verdade"
 
     elif is_welcome:
         scene_type = "player_login"
         tone = "condescending_welcome"
         focus_target = {
-            "behavior": "acabou de spawnar no mundo",
-            "absurdity": "Acha que tem moral para jogar hoje, mas mal aguenta os primeiros minutos sem passar vergonha."
+            "behavior": "acabou de spawnar no mundo achando que é protagonista",
+            "absurdity": "chegou agora e já quer respeito"
         }
         response_density = random.choice([
-            "direct_judgment (3 a 4 frases quebrando a expectativa de heroísmo logo na entrada)",
-            "sarcastic_monologue (3 a 4 frases sobre a audácia dele de voltar a passar vergonha no jogo hoje)"
+            "zoeira de entrada. 2 a 3 frases quebrando a empolgação inicial",
+            "deboche leve de quem já sabe que vai dar trabalho"
         ])
 
     elif danger_score >= 5:
         scene_type = "combat_panic"
         tone = "aggressive_mockery"
         focus_target = {
-            "behavior": "apanhando, morrendo ou falhando miseravelmente na sobrevivência",
-            "absurdity": "Apanhando feio no combate. Um completo vexame na arte da sobrevivência básica."
+            "behavior": "apanhando como se fosse esporte",
+            "absurdity": "sobrevivência questionável no modo mais simples do jogo"
         }
         response_density = random.choice([
-            "indignant_explosion (3 a 4 frases de indignação absurda com a apanhação)",
-            "rhetorical_question (3 a 4 frases pressionando o instinto de sobrevivência patético dele)"
+            "zoa a desgraça acontecendo. 2 a 3 frases rápidas e secas",
+            "reação de pânico debochado, tipo 'olha isso mano KKKK'"
         ])
 
     elif has_achievement:
         scene_type = "epic_triumph"
         tone = "sarcastic_applause"
         focus_target = {
-            "behavior": "finalmente conseguiu fazer algo digno de uma conquista",
-            "absurdity": "O jogo deu uma medalha, mas foi pura sorte e demorou uma eternidade. Não permita que ele fique com o ego inflado."
+            "behavior": "achou que ficou forte por causa de uma conquista",
+            "absurdity": "o jogo entregou algo e ele já tá se achando o escolhido"
         }
         response_density = random.choice([
-            "fake_praise (3 a 4 frases de falsos aplausos totalmente carregados de ironia)",
-            "indignant_question (3 a 4 frases diminuindo a dificuldade do que ele acabou de fazer)",
-            "sarcastic_observation (3 a 4 frases quebrando o ego dele ao meio após essa vitória fajuta)"
+            "zoeira tirando mérito total. 2 a 3 frases",
+            "ironia seca + comparação humilhante aleatória",
+            "risada e corte de ego imediato"
         ])
 
-# --- BLOCO INATIVADO TEMPORARIAMENTE (boredom_score desconectado na v1.5) ---
-    # elif boredom_score >= 10:
-    #     scene_type = "idleness_scolding"
-    #     tone = "angry_cobrador"
-    #     focus_target = {
-    #         "behavior": "completamente ocioso ou enrolando sem progresso algum",
-    #         "absurdity": "gastando oxigênio virtual e energia elétrica à toa"
-    #     }
-    #     response_density = "indignant_explosion (3 a 4 frases agressivas exigindo que ele faça algo útil imediatamente)"
+    # --- BLOCO DE IDLE REMOVIDO INTENCIONALMENTE ---
+    # (menos regra = Edson mais vivo)
 
     elif has_slept:
         scene_type = "cowardly_rest"
         tone = "mocking_lullaby"
         focus_target = {
-            "behavior": "Com medinho dos monstros, foi dormir para passar a noite",
-            "absurdity": "medo patético de enfrentar os desafios noturnos, preferindo fechar os olhos e sonhar com a vida que ele não tem"
+            "behavior": "foi dormir pra fugir da realidade do jogo",
+            "absurdity": "medo disfarçado de descanso"
         }
-        response_density = "sarcastic_monologue (3 a 4 frases zombando dele, e acordando ele com cobranças sobre a vida)"
+        response_density = "zoeira sonolenta + julgamento leve. 2 a 3 frases"
 
     elif has_chatted:
         scene_type = "chatty_nonsense"
         tone = "impatient_judgment"
         focus_target = {
-            "behavior": "digitando qualquer merda no chat em vez de focar no jogo",
-            "absurdity": "Tentando conversar com você, Edson. Cobra ele igual se faz na favela."
+            "behavior": "parado digitando besteira no chat",
+            "absurdity": "quer atenção no meio da bagunça"
         }
-        response_density = "direct_judgment (Vá direto ao ponto. Use NO MÁXIMO 2 frases curtas para destruir e zombar do que ele acabou de escrever)"
+        response_density = "resposta curta, seca e debochada. 1 a 2 frases no máximo"
 
     elif progress_score >= 4 and not combat_detected:
         scene_type = "inventory_management"
         tone = "condescending_praise"
         focus_target = {
-            "behavior": "coletando itens soltos ou craftando equipamentos",
-            "absurdity": "Achando que é o engenheiro do ano, mas só está catando tralha inútil."
+            "behavior": "organizando item como se fosse engenheiro da NASA",
+            "absurdity": "catando tralha e achando que tá progredindo demais"
         }
-        response_density = "fake_praise (3 a 4 frases de aprovação irônica focando no lixo do inventário)"
+        response_density = "zoeira leve de inventário. 2 a 3 frases"
 
     elif grinding_score >= 5 and not combat_detected:
         scene_type = "repetitive_grinding"
         tone = "impatient_boredom"
         focus_target = {
-            "behavior": "repetindo trabalho braçal básico (quebrando ou colocando blocos)",
-            "absurdity": "Trabalho de peão. Quebrando bloco repetidamente numa vida medíocre e sem subir na vida."
+            "behavior": "fazendo trabalho repetitivo sem emoção",
+            "absurdity": "vida de pedreiro digital infinito"
         }
-        response_density = "sarcastic_monologue (3 a 4 frases expressando tédio extremo por assistir essa mediocridade)"
+        response_density = "tédio + deboche. 2 a 3 frases"
 
     else:
         scene_type = "routine"
         tone = "sarcastic_observation"
         focus_target = {
-            "behavior": "vagando ou fazendo ações soltas",
-            "absurdity": "Completamente desorientado, gastando tempo de vida sem estratégia ou rumo."
+            "behavior": "fazendo nada com nada",
+            "absurdity": "perdido no mundo sem direção nenhuma"
         }
-        response_density = "indignant_question (3 a 4 frases confrontando essa falta de foco absurda)"
+        response_density = "zoeira aleatória + crítica leve. 2 a 3 frases"
 
-    # Logging visual rápido para o desenvolvedor acompanhar as decisões da Árvore
-    print(f"\n[Narrador IA - REGENTE] Cena escolhida: {scene_type} | Tom: {tone}")
+    print(f"\n[Edson IA] Cena: {scene_type} | Tom: {tone}")
 
     return {
         "scene_type": scene_type,
