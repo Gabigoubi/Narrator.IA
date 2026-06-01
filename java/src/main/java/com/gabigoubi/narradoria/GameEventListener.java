@@ -74,6 +74,10 @@ public class GameEventListener {
     private static final Map<UUID, List<String>> hotbarCaches = new ConcurrentHashMap<>();
     private static final Map<UUID, Boolean> inDeepDark = new ConcurrentHashMap<>();
     private static final Map<UUID, Boolean> isRainingCache = new ConcurrentHashMap<>();
+    // Variáveis do Gatilho de Antecipação de Chat (Épico 2)
+    private static final Map<UUID, Long> chatTimers = new ConcurrentHashMap<>();
+    private static final Map<UUID, StringBuilder> chatBuffers = new ConcurrentHashMap<>();
+
 
     // ========================================================================
     // INICIALIZAÇÃO DE EVENTOS NATIVOS
@@ -162,6 +166,8 @@ public class GameEventListener {
             musicPlayed.remove(uuid);
             inDeepDark.remove(uuid);
             isRainingCache.remove(uuid);
+            chatTimers.remove(uuid);
+            chatBuffers.remove(uuid);
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
@@ -186,8 +192,27 @@ public class GameEventListener {
     }
 
     private static void registerChatAndAdvancements() {
+        
         ServerMessageEvents.CHAT_MESSAGE.register((message, sender, params) -> {
-            if (sender != null) addActionAndCheckFlush("Chat", message.getContent().getString(), sender, false);
+            if (sender != null) {
+                UUID uuid = sender.getUuid();
+                String text = message.getContent().getString();
+                long now = System.currentTimeMillis();
+
+                // Tarefa 3.1: Inicia o timer absoluto apenas se ele não existir
+                chatTimers.putIfAbsent(uuid, now);
+
+                // Tarefa 3.2: Agrupamento Sequencial (Concatena com um pipe " | ")
+                chatBuffers.compute(uuid, (k, currentBuilder) -> {
+                    if (currentBuilder == null) {
+                        return new StringBuilder(text);
+                    } else {
+                        return currentBuilder.append(" | ").append(text);
+                    }
+                });
+
+                NarradorIAMod.LOGGER.info("[Narrador IA - DEBUG] Mensagem de chat retida no buffer inteligente de antecipação.");
+            }
         });
 
         ServerMessageEvents.GAME_MESSAGE.register((server, message, overlay) -> {
@@ -454,6 +479,40 @@ public class GameEventListener {
                 if (buffer != null) {
                     long lastFlush = lastFlushTimes.getOrDefault(uuid, now);
                     long timeElapsed = now - lastFlush;
+
+    // ==========================================================
+                    // INÍCIO DO GATILHO DE CHAT (ÉPICO 2) - Tarefa 3.3
+                    // ==========================================================
+                    Long chatStartTime = chatTimers.get(uuid);
+                    if (chatStartTime != null && (now - chatStartTime >= 10000L)) { // Janela de 10s
+                        StringBuilder chatContent = chatBuffers.get(uuid);
+                        
+                        // Consolida as mensagens e joga no motor de telemetria
+                        if (chatContent != null && chatContent.length() > 0) {
+                            addActionAndCheckFlush("Chat", chatContent.toString(), player, false);
+                        }
+                        
+                        // Zera o gatilho para a próxima conversa
+                        chatTimers.remove(uuid);
+                        chatBuffers.remove(uuid);
+
+                        // Early Flush: Ignora os 30s e dispara agora mesmo!
+                        if (!HttpAssistant.isNarrating()) {
+                            NarradorIAMod.LOGGER.info("==================================================");
+                            NarradorIAMod.LOGGER.info("[CICLO INTERNO] 🚀 DISPARO ANTECIPADO (Gatilho de Chat 10s)");
+                            NarradorIAMod.LOGGER.info("==================================================");
+                            prepareAndFlushPayload(player, buffer, now);
+                            
+                            // Reset Global: Zera a variável local de tempo para impedir que 
+                            // o bloco original dispare um buffer vazio logo abaixo.
+                            timeElapsed = 0; 
+                        } else {
+                            NarradorIAMod.LOGGER.info("[CICLO INTERNO] ⏳ Chat agrupado, mas Edson ocupado. Salvo no Buffer Especial.");
+                        }
+                    }
+                    // ==========================================================
+                    // FIM DO GATILHO DE CHAT
+                    // ==========================================================
 
                     synchronized (buffer) {
                         boolean hasTier1or2 = buffer.stream().anyMatch(e -> e.getTier() <= 2);
