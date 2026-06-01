@@ -88,111 +88,118 @@ def analisar_telemetria(recent_actions: list[str], critical_states: list[str], y
 
     action_focus_str = "\n".join(timeline) if timeline else "O jogador ficou completamente parado, inútil."
 
-    # 4. Motor de Intenção (Regras de Cena em formato Waterfall)
-
-    # 🚨 OVERRIDE ABSOLUTO DE SESSÃO
-    if is_session_summary:
-        scene_type = "session_evaluation"
-        tone = "judgmental_reviewer"
-        focus_target = {
-            "behavior": "revendo o que esse cara fez até agora",
-            "absurdity": "20 minutos de escolhas questionáveis e decisões duvidosas"
+# ========================================================================
+    # ÉPICO 1: MOTOR DE COMPOSIÇÃO MULTICONTEXTO (RULES ENGINE PATTERN)
+    # ========================================================================
+    
+    # TAREFA 1: Dicionário Central de Configuração (Data-Driven)
+    # Cada regra possui sua condição (lambda), peso de prioridade, além de metadados e instruções.
+    rules = [
+        {
+            "id": "session_summary",
+            "condition": lambda: is_session_summary,
+            "priority": 100,
+            "scene_type": "session_evaluation",
+            "tone": "judgmental_reviewer",
+            "instruction": "O jogador está revendo o que fez até agora. Faça uma avaliação crítica e jogue a real sem dó sobre os últimos 20 minutos de escolhas questionáveis."
+        },
+        {
+            "id": "deep_dark",
+            "condition": lambda: in_deep_dark,
+            "priority": 90,
+            "scene_type": "deep_dark_panic",
+            "tone": "terrified_whisper",
+            "instruction": "O jogador entrou no Deep Dark. Sinta medo real, mude o tom para um sussurro aterrorizado, perca a marra, gagueje e pede para sair dali como se tivesse visto algo errado de verdade."
+        },
+        {
+            "id": "combat_panic",
+            "condition": lambda: danger_score >= 5,
+            "priority": 80,
+            "scene_type": "combat_panic",
+            "tone": "aggressive_mockery",
+            "instruction": "O jogador está apanhando feio em combate, demonstrando uma sobrevivência questionável no modo mais simples do jogo. Reaja com pânico debochado e zombaria agressiva."
+        },
+        {
+            "id": "player_welcome",
+            "condition": lambda: is_welcome,
+            "priority": 70,
+            "scene_type": "player_login",
+            "tone": "condescending_welcome",
+            "instruction": "O jogador acabou de fazer login/spawnar no mundo achando que é o protagonista. Quebre a empolgação inicial dele com um deboche condescendente."
+        },
+        {
+            "id": "achievement",
+            "condition": lambda: has_achievement,
+            "priority": 60,
+            "scene_type": "epic_triumph",
+            "tone": "sarcastic_applause",
+            "instruction": "O jogador alcançou uma conquista e está se achando o escolhido. Use de ironia seca e aplausos sarcásticos para tirar o mérito total e cortar o ego imediato dele."
+        },
+        {
+            "id": "cowardly_rest",
+            "condition": lambda: has_slept,
+            "priority": 50,
+            "scene_type": "cowardly_rest",
+            "tone": "mocking_lullaby",
+            "instruction": "O jogador foi dormir para fugir da realidade do jogo. Zombe desse descanso, tratando-o como medo disfarçado."
+        },
+        {
+            "id": "chatty_nonsense",
+            "condition": lambda: has_chatted,
+            "priority": 40,
+            "scene_type": "chatty_nonsense",
+            "tone": "impatient_judgment",
+            "instruction": "O jogador parou para digitar bobeira no chat querendo atenção. Dê uma resposta curta, seca, debochada e impaciente."
+        },
+        {
+            "id": "inventory_management",
+            "condition": lambda: progress_score >= 4 and not combat_detected,
+            "priority": 30,
+            "scene_type": "inventory_management",
+            "tone": "condescending_praise",
+            "instruction": "O jogador está organizando itens ou criando ferramentas. Faça uma piada condescendente sobre ele se achar um engenheiro da NASA catando tralhas."
+        },
+        {
+            "id": "repetitive_grinding",
+            "condition": lambda: grinding_score >= 5 and not combat_detected,
+            "priority": 20,
+            "scene_type": "repetitive_grinding",
+            "tone": "impatient_boredom",
+            "instruction": "O jogador está preso em um trabalho repetitivo (grinding). Demonstre tédio profundo e deboche dessa vida de pedreiro digital infinito."
         }
-        response_density = "choro ou risada, tanto faz. 2 a 3 frases jogando a real sem dó"
+    ]
 
-    elif in_deep_dark:
-        scene_type = "deep_dark_panic"
-        tone = "terrified_whisper"
-        focus_target = {
-            "behavior": "entrou no submundo onde não devia estar",
-            "absurdity": "ambiente silencioso demais, sensação de perigo constante, qualquer passo parece erro fatal"
-        }
-        response_density = "medo real + quebra de pose. 2 a 3 frases curtas, Edson perde a marra, começa a gaguejar e pede pra sair dali como se tivesse visto algo errado de verdade"
+    # TAREFA 2: O Handler (O Varredor Dinâmico)
+    # Avalia as expressões lambda de cada regra e coleta as que retornarem True
+    triggered_rules = [rule for rule in rules if rule["condition"]()]
 
-    elif is_welcome:
-        scene_type = "player_login"
-        tone = "condescending_welcome"
-        focus_target = {
-            "behavior": "acabou de spawnar no mundo achando que é protagonista",
-            "absurdity": "chegou agora e já quer respeito"
-        }
-        response_density = random.choice([
-            "zoeira de entrada. 2 a 3 frases quebrando a empolgação inicial",
-            "deboche leve de quem já sabe que vai dar trabalho"
-        ])
+    # TAREFA 3: Filtro de Prioridade e Segurança (Ordenação e Corte Top 3)
+    # Ordena as regras ativadas da maior prioridade para a menor
+    triggered_rules.sort(key=lambda r: r["priority"], reverse=True)
+    
+    # Aplica o slice para reter estritamente os 3 contextos mais importantes
+    top_rules = triggered_rules[:3]
 
-    elif danger_score >= 5:
-        scene_type = "combat_panic"
-        tone = "aggressive_mockery"
-        focus_target = {
-            "behavior": "apanhando como se fosse esporte",
-            "absurdity": "sobrevivência questionável no modo mais simples do jogo"
-        }
-        response_density = random.choice([
-            "zoa a desgraça acontecendo. 2 a 3 frases rápidas e secas",
-            "reação de pânico debochado, tipo 'olha isso mano KKKK'"
-        ])
-
-    elif has_achievement:
-        scene_type = "epic_triumph"
-        tone = "sarcastic_applause"
-        focus_target = {
-            "behavior": "achou que ficou forte por causa de uma conquista",
-            "absurdity": "o jogo entregou algo e ele já tá se achando o escolhido"
-        }
-        response_density = random.choice([
-            "zoeira tirando mérito total. 2 a 3 frases",
-            "ironia seca + comparação humilhante aleatória",
-            "risada e corte de ego imediato"
-        ])
-
-    # --- BLOCO DE IDLE REMOVIDO INTENCIONALMENTE ---
-    # (menos regra = Edson mais vivo)
-
-    elif has_slept:
-        scene_type = "cowardly_rest"
-        tone = "mocking_lullaby"
-        focus_target = {
-            "behavior": "foi dormir pra fugir da realidade do jogo",
-            "absurdity": "medo disfarçado de descanso"
-        }
-        response_density = "zoeira sonolenta + julgamento leve. 2 a 3 frases"
-
-    elif has_chatted:
-        scene_type = "chatty_nonsense"
-        tone = "impatient_judgment"
-        focus_target = {
-            "behavior": "parado digitando besteira no chat",
-            "absurdity": "quer atenção no meio da bagunça"
-        }
-        response_density = "resposta curta, seca e debochada. 1 a 2 frases no máximo"
-
-    elif progress_score >= 4 and not combat_detected:
-        scene_type = "inventory_management"
-        tone = "condescending_praise"
-        focus_target = {
-            "behavior": "organizando item como se fosse engenheiro da NASA",
-            "absurdity": "catando tralha e achando que tá progredindo demais"
-        }
-        response_density = "zoeira leve de inventário. 2 a 3 frases"
-
-    elif grinding_score >= 5 and not combat_detected:
-        scene_type = "repetitive_grinding"
-        tone = "impatient_boredom"
-        focus_target = {
-            "behavior": "fazendo trabalho repetitivo sem emoção",
-            "absurdity": "vida de pedreiro digital infinito"
-        }
-        response_density = "tédio + deboche. 2 a 3 frases"
-
-    else:
+    # TAREFA 4: Composição e Injeção Transparente
+    if not top_rules:
+        # Fallback de Segurança: Ativado caso nenhuma regra de score seja disparada
         scene_type = "routine"
         tone = "sarcastic_observation"
-        focus_target = {
-            "behavior": "fazendo nada com nada",
-            "absurdity": "perdido no mundo sem direção nenhuma"
-        }
-        response_density = "zoeira aleatória + crítica leve. 2 a 3 frases"
+        combined_instructions = "O jogador está apenas fazendo ações comuns de rotina, sem direção nenhuma. Faça uma observação sarcástica e uma crítica leve sobre ele não estar fazendo nada com nada."
+    else:
+        # A regra vencedora (maior prioridade) dita o tipo de cena e o tom principal para o main.py
+        scene_type = top_rules[0]["scene_type"]
+        tone = top_rules[0]["tone"]
+        
+        # Junta as diretrizes dos até 3 vencedores em um único bloco de texto limpo
+        combined_instructions = " | ".join([r["instruction"] for r in top_rules])
+
+    # Montagem estável do dicionário de retorno (Sem quebrar o contrato com o main.py)
+    focus_target = {
+        "behavior": "reagir aos múltiplos eventos capturados no ciclo de forma integrada",
+        "absurdity": combined_instructions
+    }
+    response_density = "2 a 3 frases combinando os cenários de forma fluida"
 
     print(f"\n[Edson IA] Cena: {scene_type} | Tom: {tone}")
 
