@@ -1,90 +1,79 @@
-# 🎙️ Mod Narrador IA para Minecraft (Fabric 1.21.1) - Versão 1.5
+📋 Backlog v1.6: Evolução Multicontexto do Regente
+O Problema (Estado Atual)
+O regente atua como um funil muito estreito. Se o jogador faz três coisas diferentes no mesmo ciclo (ex: ameaça a IA no chat, consegue uma conquista e minera pedras), a arquitetura atual força o sistema a escolher apenas uma delas e ignorar o resto. Isso gera uma narração rígida e desperdiça o potencial da IA.
 
-> 🔗 **LINKS OFICIAIS**
->
-> - **Download do Mod (CurseForge):** [https://www.curseforge.com/minecraft/mc-mods/narrator-ia](https://www.curseforge.com/minecraft/mc-mods/narrator-ia)
-> - **Comunidade no Discord:** [https://discord.gg/G6tNE5bQbH](https://discord.gg/G6tNE5bQbH)
+A Solução (Visão Arquitetural)
+Transformar o regente em um "curador de contexto". Sem reescrever os cálculos ou o log que já funcionam, o sistema passará a identificar múltiplos eventos simultâneos, selecionará os 3 mais relevantes e entregará as instruções combinadas para a LLM. O formato final do prompt permanece intacto, delegando para a IA o trabalho de cruzar os cenários.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Minecraft-1.21.1-62B47A?style=for-the-badge&logo=minecraft&logoColor=white" alt="Minecraft" />
-  <img src="https://img.shields.io/badge/Fabric-DBD8CD?style=for-the-badge&logo=fabric&logoColor=333333" alt="Fabric" />
-  <img src="https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java" />
-  <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Ollama-000000?style=for-the-badge&logo=ollama&logoColor=white" alt="Ollama" />
-  <img src="https://img.shields.io/badge/Groq-F55036?style=for-the-badge&logoColor=white" alt="Groq" />
-  <a href="https://discord.gg/G6tNE5bQbH"><img src="https://img.shields.io/badge/Discord-Narrador_IA-7289DA?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" /></a>
-</p>
+🏗️ ÉPICO 1: Motor de Composição Multicontexto
+Tarefa 1: Mapeamento de Instruções Diretas (Variáveis de Contexto)
 
----
+Lógica: Substituir a ideia de marcadores de estado (verdadeiro/falso) por comandos diretos.
 
-Bem-vindo ao projeto! O Narrador IA evoluiu. O que começou como uma zoeira para me humilhar enquanto jogo, tornou-se um **sistema de direção narrativa** que assiste sua gameplay, interpreta e te esculacha em tempo real.
+Fluxo: Criar as variáveis que representam os eventos do jogo (ex: has_chatted, is_mining, epic_triumph). Em vez de receberem um simples "sim", elas devem ser programadas para guardar a diretriz exata que a LLM deve seguir caso o evento ocorra (ex: has_chatted guarda a frase "1 frase comentando sobre a mensagem do usuário, apenas zoe").
 
-Conheça o **Edson Calotas**, nosso parceiro virtual da Zona Leste. Ele não é mais um bot que lê logs do sistema; ele é um ator que recebe direção de cena e interpreta sua mediocridade no jogo com sarcasmo, deboche e ameaças veladas.
+Tarefa 2: Coleta Simultânea de Cenários (Fim da Decisão Única)
 
----
+Lógica: Permitir que o sistema reconheça tudo o que aconteceu de importante no ciclo, quebrando a regra de "um evento anula o outro".
 
-## 🚀 O que mudou na v1.5 (A Dieta de Contexto e Foco Absoluto)
+Fluxo: Ajustar o avaliador de scores para que ele não pare na primeira condição verdadeira. Ele deve passar por todos os eventos possíveis e preencher com texto todas as variáveis de instrução (da Tarefa 1) que baterem com os scores lidos naquele momento.
 
-A versão 1.5 traz uma revolução silenciosa na arquitetura do mod. Aplicamos uma "Dieta de Contexto" rigorosa no motor do Edson para eliminar confusões narrativas, acelerar a reatividade e forçar a inteligência artificial a ser impiedosamente direta.
+Tarefa 3: Filtro de Prioridade e Segurança (A Regra dos Top 3)
 
-- **A Dieta de Contexto:** O motor agora dispara a cada 30 segundos (antes 60s) e avalia um buffer reduzido de eventos recentes, mantendo apenas 1 entrada de memória histórica. Resultado? O Edson foca estritamente no que você acabou de fazer, sem alucinar com o passado.
-- **Agrupamento Inteligente de Inventário:** O Java agora varre todo o histórico de ações não-consecutivas para agrupar o que você faz de repetitivo. Em vez de ler que você quebrou pedra várias vezes isoladas, o motor consolida tudo em um único evento ("Pedra 13 vezes"), economizando tokens e melhorando a fluidez.
-- **Regente "Show, Don't Tell":** Abandonamos ordens robóticas no prompt. O motor Python agora descreve o _absurdo situacional_ (ex: "Achando que é o rei do subsolo, mas só está catando tralha"). Isso dá total liberdade criativa para a IA escolher como te ofender com base no contexto.
-- **O Fim da Síndrome do "Como se":** Utilizando técnicas avançadas de _Few-Shot Prompting_, erradicamos os vícios de linguagem da LLM (como as comparações "como se fosse" ou "parece que"). O Edson agora ataca afirmando os fatos diretamente e sem rodeios.
-- **Correção de Falsos-Positivos:** Atacar galinhas ou lulas não aciona mais a cena de Pânico/Combate. O motor agora é treinado para rir da sua cara apenas quando você _toma dano_ real de inimigos, além de possuir formatação natural de log anti-confusão.
-- **Ajustes de Áudio e Quality of Life:** O limite de geração foi ampliado para 350 tokens, acabando de vez com frases cortadas. A memória do Edson sofre um _wipe_ completo toda vez que você loga no mundo, e o Easter Egg musical teve seu volume equalizado e tempo estendido para um ritmo natural de gameplay.
+Lógica: Proteger a LLM contra o excesso de informações, garantindo que ela foque apenas no que é vital.
 
----
+Fluxo: Pegar todas as instruções que foram preenchidas na Tarefa 2 e ordená-las usando a força da sua relevância natural (onde eventos de Tier 1/Perigo têm prioridade sobre Tier 3/Tédio). Após ordenar, cortar a lista para manter estritamente as 3 diretrizes mais importantes, descartando o resto.
 
-## 💻 Requisitos do Sistema
+Tarefa 4: Composição e Injeção Transparente (Preservação do Prompt)
 
-O sistema possui um **Dev Mode** que permite rodar a inteligência via Cloud (Groq), reduzindo drasticamente o consumo de RAM local.
+Lógica: Entregar o contexto combinado para a LLM sem quebrar a integração ou o formato visual que o sistema já utiliza para se comunicar.
 
-### Modo Local (Ollama - Padrão)
+Fluxo: Unir os textos das até 3 instruções vencedoras em um único bloco. Injetar esse texto combinado diretamente no campo que define o foco da cena atual. O pipeline que formata o prompt final não sofre nenhuma alteração; ele apenas passará a processar um comando mais rico e cruzado.
 
-- **Memória RAM:** Mínimo de 12GB (Lock de segurança imposto para evitar BSoD).
-- **GPU:** Dedicada com 6GB+ VRAM.
+ÉPICO 2: Buffer Inteligente de Chat (Gatilho de Antecipação)
+Objetivo: Consolidar múltiplas mensagens e forçar um disparo antecipado de toda a telemetria (Early Flush) para garantir responsividade natural em interações verbais.
 
-### Modo Cloud (Dev Mode - Groq API)
+Tarefa 3.1: Temporizador de Interrupção (Fast-Track Timer)
 
-- **Memória RAM:** 4GB+ (O processamento pesado ocorre na nuvem).
-- **Necessário:** API Key do Groq configurada no arquivo `.env`.
+Lógica: Criar uma contagem regressiva isolada acionada por eventos de chat.
 
----
+Fluxo: Ao detectar a primeira mensagem de chat do jogador, o sistema inicia uma janela absoluta de 10 segundos. Essa janela não reinicia caso novas mensagens cheguem.
 
-## ⚙️ Como Instalar e Jogar
+Tarefa 3.2: Agrupamento Sequencial Simultâneo
 
-1. **Baixe o Mod:** Instale o `.jar` pela [nossa página oficial no CurseForge](https://www.curseforge.com/minecraft/mc-mods/narrator-ia).
-2. **Baixe o Servidor IA:** Baixe o código deste repositório (botão `Code > Download ZIP`) e extraia a pasta no seu PC.
-3. **Instalação:** Execute o arquivo `1_PRIMEIRA_VEZ.bat`. _(Lembre-se de marcar "Add Python 3.11 to PATH" durante a instalação do Python!)_.
-4. **Ligar e Jogar:** Sempre que for jogar, execute o arquivo **`2_INICIAR_IA.bat`**.
-   > _Deixe a tela aberta em segundo plano, abra o Minecraft e divirta-se!_
+Lógica: Acumular as falas do jogador enquanto outros eventos continuam ocorrendo normalmente no fundo.
 
-> **⚠️ AVISO IMPORTANTE:** Sempre delete a pasta antiga antes de atualizar para uma nova versão. A versão do arquivo `.jar` deve casar exatamente com a versão da pasta baixada.
+Fluxo: Durante os 10 segundos, as mensagens de chat adicionais são concatenadas em um único bloco de texto. Paralelamente, se o jogador tomar dano, minerar ou craftar algo, essas ações continuam entrando no buffer principal normalmente.
 
----
+Tarefa 3.3: Disparo Forçado (Early Flush) e Reset Global
 
-## 🛡️ Diretrizes Éticas e Segurança
+Lógica: Ignorar o ciclo padrão de 30 segundos e despachar o pacote imediatamente.
 
-- **Foco na Gameplay:** O Edson Calotas zomba apenas de decisões lógicas dentro do jogo.
-- **Segurança:** A IA possui travas comportamentais severas e está proibida de ofender o usuário pessoalmente.
-- **Blindagem Passiva:** O sistema envelopa qualquer texto do chat em uma "jaula semântica", permitindo ler o que você escreve sem correr o risco de ser manipulado.
+Fluxo: Assim que os 10 segundos do chat expirarem, o cliente força o disparo de todo o buffer atual (o chat consolidado + as pedras quebradas + o dano tomado, etc.) para o backend Python. Imediatamente após esse disparo, o relógio padrão de 30 segundos do jogo é zerado/resetado, evitando que um segundo disparo vazio ou duplicado ocorra logo em seguida.
 
----
+🛡️ ÉPICO 3: Validação de Versão no Boot (Handshake Antecipado)
+Objetivo: Garantir a compatibilidade entre cliente e servidor assim que o Minecraft é aberto, utilizando uma checagem isolada que bloqueia o funcionamento e gera alertas massivos no terminal em caso de defasagem.
 
-## 📂 Informações Técnicas (Para Desenvolvedores)
+Tarefa 4.1: Criação do Validador Dedicado (Isolamento de Responsabilidade)
 
-O pipeline utiliza uma "Fronteira Seca" rigorosa para separar a coleta de dados da tomada de decisão:
+Lógica: Prevenir o antipadrão God Object mantendo a classe principal limpa.
 
-1. **Java Sensor (Client-side):** Captura telemetria bruta via _Mixins_ (sem vazamento de memória) e despacha _Raw Data_ (JSON puro, coordenadas inteiras e flags) via HTTP Assíncrono.
-2. **Regente (Python Engine):** Motor lógico de hierarquia Waterfall. Pesa o perigo, tédio e progresso, injeta a tradução semântica do ambiente e gera metadados rigorosos (`scene_type`, `focus_target`, `response_density`).
-3. **Ator (LLM):** Guiado por _Few-Shot Prompting_ e um limite seguro de tokens, a IA recebe uma descrição situacional do absurdo ocorrido e gera a resposta operando com uma janela estreita de contexto, impedindo _hallucinations_ narrativas.
+Fluxo: Criar um novo arquivo/classe no Java (ex: VersionValidator) com a responsabilidade única de gerenciar o handshake. Essa classe será chamada no momento da inicialização do mod (onInitialize), antes de qualquer registro de evento de gameplay.
 
-**Anti-Pattern & Performance:** O sistema utiliza `ConcurrentHashMap` no Java para evitar _thread-blocking_ e `FastAPI` no Python para streaming de áudio.
+Tarefa 4.2: Rota de Handshake e Fonte da Verdade (Backend Python)
 
----
+Lógica: Estabelecer uma via de checagem exclusiva, separada do pipeline de narração.
 
-## 💡 Créditos
+Fluxo: Criar uma variável SERVER_VERSION no Python. Implementar um endpoint rápido (ex: /handshake) que receba a versão do cliente, compare com a do servidor e devolva o diagnóstico exato: "Compatível", "Cliente Desatualizado" ou "Servidor Desatualizado".
 
-Inspirado no trabalho de _parmenashp_: [Repositório: minecraft-narrator](https://github.com/parmenashp/minecraft-narrator/tree/main).
+Tarefa 4.3: Disparo da Checagem de Boot (Cliente Java)
+
+Lógica: Antecipar a detecção de problemas para antes do jogador entrar no mundo.
+
+Fluxo: Assim que o mod carregar, o Validador Dedicado faz um POST para a rota de handshake informando sua própria versão. O sistema aguarda a resposta para decidir se autoriza ou não o carregamento do motor de telemetria.
+
+Tarefa 4.4: Alerta Massivo no Terminal e Bloqueio de Execução
+
+Lógica: Informar o jogador de forma inconfundível e prevenir falhas em cascata.
+
+Fluxo: Se o backend acusar incompatibilidade, o Java imprime um erro colossal no log/terminal (um bloco visualmente destacado com avisos, indicando claramente se o usuário deve baixar um novo .jar ou uma nova pasta do servidor). Além disso, o Validador atua como uma trava: em caso de erro ou servidor offline, ele aborta o registro do GameEventListener, desativando a telemetria completamente para aquela sessão sem causar crash no jogo.
