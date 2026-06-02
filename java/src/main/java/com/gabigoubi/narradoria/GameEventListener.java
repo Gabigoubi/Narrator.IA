@@ -43,6 +43,7 @@ public class GameEventListener {
     // ========================================================================
     // CONSTANTES E CONFIGURAÇÕES DE TEMPO
     // ========================================================================
+
     private static final String VOICE_MODEL = "pm_alex";
     private static final int MAX_BUFFER_SIZE = 20;
     private static final long FLUSH_INTERVAL_MS = 30000L;
