@@ -18,6 +18,7 @@ OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
 OLLAMA_PULL_URL = "http://localhost:11434/api/pull"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+SERVER_VERSION = "1.6"
 
 TIMEOUT_OLLAMA = 300
 DEFAULT_MODEL = "mistral"
@@ -51,6 +52,9 @@ class PlayerTelemetry(BaseModel):
     y_level: int | None = None         
     is_session_summary: bool = False
 
+class HandshakePayload(BaseModel):
+    client_version: str
+    
 # ========================================================================
 # ROTINAS DE PROTEÇÃO E INICIALIZAÇÃO
 # ========================================================================
@@ -104,7 +108,40 @@ def log_dashboard(telemetry, direcao, user_data):
     print(f"\n🎭 3. DECISÃO DE CENA E TOM:\n   Tipo de Cena: {direcao['scene_type']}\n   Tom Vocal: {direcao['tone']}")
     print(f"\n📜 4. ROTEIRO FINAL ENVIADO PARA A IA (LLM):\n{user_data}")
     print("\n" + "█" * 70 + "\n")
+# ========================================================================
+# ROTA DE VALIDAÇÃO DE BOOT (HANDSHAKE)
+# ========================================================================
+@app.post("/handshake")
+def verify_handshake(payload: HandshakePayload):
+    client_v = payload.client_version
+    server_v = SERVER_VERSION
 
+    # Se as versões batem perfeitamente, autoriza o boot
+    if client_v == server_v:
+        return {"status": "ok"}
+
+    # Motor de diagnóstico: descobre exatamente quem está defasado
+    try:
+        # Quebra a string em listas de inteiros para comparação matemática segura
+        client_parts = [int(x) for x in client_v.split('.')]
+        server_parts = [int(x) for x in server_v.split('.')]
+
+        if client_parts < server_parts:
+            # Mod está antigo
+            msg = f"O seu Mod Java está desatualizado (v{client_v}). Por favor, atualize sua pasta mods para a v{server_v}."
+        else:
+            # Servidor está antigo
+            msg = f"O seu Servidor Python está desatualizado (v{server_v}). Por favor, atualize o código do backend para suportar o mod v{client_v}."
+            
+        print(f"\n[AVISO DE HANDSHAKE] ⚠️ Conexão bloqueada. {msg}")
+        return {"status": "error", "message": msg}
+        
+    except ValueError:
+        # Fallback de segurança caso a string venha corrompida
+        return {
+            "status": "error", 
+            "message": f"Incompatibilidade de versões. Mod: {client_v} | Servidor: {server_v}"
+        }
 # ========================================================================
 # ROTA PRINCIPAL (API DE NARRATIVA)
 # ========================================================================

@@ -22,7 +22,17 @@ public class NarradorIAMod implements ModInitializer {
     @Override
     public void onInitialize() {
         logInitialization();
-        registerEventHandlers();
+        
+        // Fase 2: Sempre registramos o listener de login para poder avisar o jogador
+        VersionValidator.registerLoginListener();
+        
+        // Fase 1: Avaliamos o handshake. Só registra a telemetria se o Python autorizar.
+        if (VersionValidator.validateAtBoot()) {
+            registerEventHandlers();
+        } else {
+            LOGGER.warn("[Narrador IA] Execução interrompida via VersionValidator. Motor dormindo.");
+        }
+        
         logCompletion();
     }
 
@@ -41,7 +51,7 @@ public class NarradorIAMod implements ModInitializer {
 
     private void logInitialization() {
         LOGGER.info("========================================");
-        LOGGER.info("Iniciando Narrador IA v1.3 - Edson Calotas");
+        LOGGER.info("Iniciando Narrador IA v" + VersionValidator.CLIENT_VERSION + " - Edson Calotas");
         LOGGER.info("========================================");
     }
 
